@@ -1,45 +1,62 @@
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
-#include <errno.h>
+#include "cat-file.h"
 
-int main(int argc, char *argv[]) {
+int init(void)
+{
+    // You can use print statements as follows for debugging, they'll be visible when running tests.
+    fprintf(stderr, "Logs from your program will appear here!\n");
+
+    if (mkdir(".git", 0755) == -1 ||
+        mkdir(".git/objects", 0755) == -1 ||
+        mkdir(".git/refs", 0755) == -1)
+    {
+        fprintf(stderr, "Failed to create directories: %s\n", strerror(errno));
+        return 1;
+    }
+
+    FILE *headFile = fopen(".git/HEAD", "w");
+    if (headFile == NULL)
+    {
+        fprintf(stderr, "Failed to create .git/HEAD file: %s\n", strerror(errno));
+        return 1;
+    }
+
+    fprintf(headFile, "ref: refs/heads/main\n");
+    fclose(headFile);
+
+    printf("Initialized git directory\n");
+
+    return 0;
+}
+
+int main(const int argc, char *argv[])
+{
     // Disable output buffering
     setbuf(stdout, NULL);
     setbuf(stderr, NULL);
 
-    if (argc < 2) {
+    if (argc < 2)
+    {
         fprintf(stderr, "Usage: ./your_program.sh <command> [<args>]\n");
         return 1;
     }
-    
+
     const char *command = argv[1];
-    
-    if (strcmp(command, "init") == 0) {
-        // You can use print statements as follows for debugging, they'll be visible when running tests.
-        fprintf(stderr, "Logs from your program will appear here!\n");
 
-        if (mkdir(".git", 0755) == -1 ||
-            mkdir(".git/objects", 0755) == -1 ||
-            mkdir(".git/refs", 0755) == -1) {
-            fprintf(stderr, "Failed to create directories: %s\n", strerror(errno));
-            return 1;
-        }
-
-        FILE *headFile = fopen(".git/HEAD", "w");
-        if (headFile == NULL) {
-            fprintf(stderr, "Failed to create .git/HEAD file: %s\n", strerror(errno));
-            return 1;
-        }
-        fprintf(headFile, "ref: refs/heads/main\n");
-        fclose(headFile);
-
-        printf("Initialized git directory\n");
-    } else {
-        fprintf(stderr, "Unknown command %s\n", command);
-        return 1;
+    if (strcmp(command, "init") == 0)
+    {
+        return init();
     }
-    
-    return 0;
+
+    if (strcmp(command, "cat-file") == 0)
+    {
+        return cat_file(argc, argv);
+    }
+
+    fprintf(stderr, "Unknown command %s\n", command);
+    return 1;
 }
