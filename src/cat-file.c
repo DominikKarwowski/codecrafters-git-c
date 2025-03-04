@@ -3,11 +3,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include "../../C/libs/zlib/1.3.1/include/zlib.h"
+#include "zlib.h"
 
 #define INFLATE_BUFFER 65536
 
-// TODO: refactor to use variadic args?
 static bool try_set_cat_file_opt(
     bool *opt,
     const char *opt_name,
@@ -77,30 +76,26 @@ bool try_resolve_cat_file_opts(const int argc, char **argv)
 
 static struct object_path get_obj_path(const char *obj_hash)
 {
-    char subdir[3];
-    char name[19];
+    struct object_path obj_path;
 
-    int i = 0;
+    int i;
+    int j;
 
     for (i = 0; i < 2; i++)
     {
-        subdir[i] = obj_hash[i];
+        obj_path.subdir[i] = obj_hash[i];
     }
 
-    subdir[i] = '\0';
+    obj_path.subdir[i] = '\0';
 
-    for (int j = 0; j < 18; j++, i++)
+    for (j = 0; j < 18; j++, i++)
     {
-        name[j] = obj_hash[i];
+        obj_path.name[j] = obj_hash[i];
     }
 
-    name[i] = '\0';
+    obj_path.name[j] = '\0';
 
-    return
-    {
-        .subdir = subdir,
-        .name = name,
-    };
+    return obj_path;
 }
 
 int cat_file(const int argc, char *argv[])
@@ -136,7 +131,7 @@ int cat_file(const int argc, char *argv[])
         return 1;
     }
 
-    auto inflate_result = 0;
+    int inflate_result = 0;
     char *in = malloc(INFLATE_BUFFER);
     char *out = nullptr;
     int out_factor = 1;
