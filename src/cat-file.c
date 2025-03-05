@@ -100,6 +100,8 @@ static struct object_path get_obj_path(const char *obj_hash)
 
 void print_inflate_result(FILE *source, FILE *dest)
 {
+    bool header_skipped = false;
+
     z_stream infstream = {
         .zalloc = Z_NULL,
         .zfree = Z_NULL,
@@ -144,6 +146,18 @@ void print_inflate_result(FILE *source, FILE *dest)
             }
 
             const unsigned have = CHUNK - infstream.avail_out;
+
+            if (!header_skipped)
+            {
+                do
+                {
+                    // loop to advance through stream
+                } while (fgetc(dest) != '\0');
+
+                (void)fgetc(dest);
+
+                header_skipped = true;
+            }
 
             const size_t write_size = fwrite(out, 1, have, dest);
 
