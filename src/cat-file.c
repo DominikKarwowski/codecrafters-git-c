@@ -88,7 +88,7 @@ static struct object_path get_obj_path(const char *obj_hash)
 
     obj_path.subdir[i] = '\0';
 
-    for (j = 0; j < 18; j++, i++)
+    for (j = 0; j < 38; j++, i++)
     {
         obj_path.name[j] = obj_hash[i];
     }
