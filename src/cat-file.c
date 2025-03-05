@@ -149,22 +149,19 @@ void print_inflate_result(FILE *source, FILE *dest)
 
             if (!header_skipped)
             {
-                const auto *c = &out;
-                int count = 0;
+                int i = 0;
 
-                while (*c != nullptr)
+                while (out[i] != '\0')
                 {
-                    count++;
-                    c++;
+                    i++;
                 }
 
-                count++;
-                c++;
+                i++;
 
                 header_skipped = true;
 
-                have = have - count;
-                const size_t write_size = fwrite(c, 1, have, dest);
+                have = have - i;
+                const size_t write_size = fwrite(&out[i], 1, have, dest);
                 validate(write_size == have, "Failed writing to output stream.");
             }
             else
