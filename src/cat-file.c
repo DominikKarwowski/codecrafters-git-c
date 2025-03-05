@@ -145,23 +145,33 @@ void print_inflate_result(FILE *source, FILE *dest)
                     validate(false, "Failed to inflate with Z error code: %d.", ret);
             }
 
-            const unsigned have = CHUNK - infstream.avail_out;
+            unsigned have = CHUNK - infstream.avail_out;
 
             if (!header_skipped)
             {
-                do
-                {
-                    // loop to advance through stream
-                } while (fgetc(dest) != '\0');
+                const auto *c = &out;
+                int count = 0;
 
-                (void)fgetc(dest);
+                while (*c != nullptr)
+                {
+                    count++;
+                    c++;
+                }
+
+                count++;
+                c++;
 
                 header_skipped = true;
+
+                have = have - count;
+                const size_t write_size = fwrite(c, 1, have, dest);
+                validate(write_size == have, "Failed writing to output stream.");
             }
-
-            const size_t write_size = fwrite(out, 1, have, dest);
-
-            validate(write_size == have, "Failed writing to output stream.");
+            else
+            {
+                const size_t write_size = fwrite(out, 1, have, dest);
+                validate(write_size == have, "Failed writing to output stream.");
+            }
 
         } while (infstream.avail_out == 0);
 
