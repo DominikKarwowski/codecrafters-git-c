@@ -1,11 +1,14 @@
 #include "cat-file.h"
+
+#include <assert.h>
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+
 #include "zlib.h"
 
-#define INFLATE_BUFFER 65536
+#define CHUNK 65536
 
 static bool try_set_cat_file_opt(
     bool *opt,
@@ -98,6 +101,74 @@ static struct object_path get_obj_path(const char *obj_hash)
     return obj_path;
 }
 
+int print_inflate_result(FILE *source, FILE *dest)
+{
+    z_stream infstream = {
+        .zalloc = Z_NULL,
+        .zfree = Z_NULL,
+        .opaque = Z_NULL,
+        .avail_in = 0,
+        .next_in = Z_NULL,
+    };
+
+    int ret = inflateInit(&infstream);
+    if (ret != Z_OK)
+    {
+        return ret;
+    }
+
+    do
+    {
+        unsigned char in[CHUNK];
+        infstream.avail_in = fread(in, 1, CHUNK, source);
+
+        if (ferror(source))
+        {
+            (void)inflateEnd(&infstream);
+            return Z_ERRNO;
+        }
+
+        if (infstream.avail_in == 0)
+        {
+            break;
+        }
+
+        infstream.next_in = in;
+
+        do
+        {
+            unsigned char out[CHUNK];
+            infstream.avail_out = CHUNK;
+            infstream.next_out = out;
+            ret = inflate(&infstream, Z_NO_FLUSH);
+            assert(ret != Z_STREAM_ERROR);
+
+            // ReSharper disable once CppDefaultCaseNotHandledInSwitchStatement
+            switch (ret) // NOLINT(*-multiway-paths-covered)
+            {
+                case Z_NEED_DICT:
+                    ret = Z_DATA_ERROR; /* and fall through */
+                case Z_DATA_ERROR:
+                case Z_MEM_ERROR:
+                    (void)inflateEnd(&infstream);
+                    return ret;
+            }
+
+            const unsigned have = CHUNK - infstream.avail_out;
+            if (fwrite(out, 1, have, dest) != have || ferror(dest))
+            {
+                (void)inflateEnd(&infstream);
+                return Z_ERRNO;
+            }
+
+        } while (infstream.avail_out == 0);
+
+    } while (ret != Z_STREAM_END);
+
+    (void)inflateEnd(&infstream);
+    return ret == Z_STREAM_END ? Z_OK : Z_DATA_ERROR;
+}
+
 int cat_file(const int argc, char *argv[])
 {
     const char *obj_hash = argv[3];
@@ -112,12 +183,6 @@ int cat_file(const int argc, char *argv[])
     char full_obj_path[PATH_MAX];
     sprintf(full_obj_path, ".git/objects/%s/%s", obj_path.subdir, obj_path.name);
 
-    z_stream infstream = {
-        .zalloc = Z_NULL,
-        .zfree = Z_NULL,
-        .opaque = Z_NULL,
-    };
-
     FILE *obj_file = fopen(full_obj_path, "r");
 
     if (!obj_file)
@@ -125,52 +190,9 @@ int cat_file(const int argc, char *argv[])
         return 1;
     }
 
-    if (inflateInit(&infstream) != Z_OK)
-    {
-        fclose(obj_file);
-        return 1;
-    }
-
-    int inflate_result = 0;
-    char *in = malloc(INFLATE_BUFFER);
-    char *out = nullptr;
-    int out_factor = 1;
-
-    do
-    {
-        const auto new_out = realloc(out, INFLATE_BUFFER * out_factor++);
-
-        if (!new_out)
-        {
-            free(out);
-            fclose(obj_file);
-            inflateEnd(&infstream);
-            return 1;
-        }
-
-        out = new_out;
-
-        const size_t n = fread(in, sizeof(unsigned char), INFLATE_BUFFER, obj_file);
-        infstream.avail_in = n;
-        infstream.next_in = (Bytef *)in;
-
-        infstream.avail_out = INFLATE_BUFFER;
-        infstream.next_out = (Bytef *)out;
-
-        inflate_result = inflate(&infstream, Z_NO_FLUSH);
-    } while (inflate_result != Z_STREAM_END);
-
-    // const int term_idx = INFLATE_BUFFER * out_factor + (INFLATE_BUFFER - infstream.avail_out);
-    // out[term_idx] = '\0';
+    print_inflate_result(obj_file, stdout);
 
     fclose(obj_file);
-
-    if (inflateEnd(&infstream) != Z_OK)
-    {
-        return 1;
-    }
-
-    printf("%s\n", out);
 
     return 0;
 }
