@@ -175,7 +175,7 @@ int cat_file(const int argc, char *argv[])
 
     FILE *obj_file = fopen(full_obj_path, "r");
 
-    validate(obj_file, "Failed to open object file: %s.", full_obj_path);
+    validate(obj_file, "Failed to open object file: %s", full_obj_path);
 
     print_inflate_result(obj_file, stdout);
 
