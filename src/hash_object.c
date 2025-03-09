@@ -121,19 +121,24 @@ static int write_blob(char *filename)
 
     const size_t content_size = fs.st_size;
 
-    char *blob_header[24];
+    char blob_header[24];
 
-    const int header_len = sprintf(*blob_header, "blob %lu", content_size);
-    const size_t blob_size = header_len + content_size;
+    const int header_size = sprintf(blob_header, "blob %lu", content_size) + 1;
+    const size_t blob_size = header_size + content_size;
 
     FILE *blob_data = fmemopen(NULL, blob_size, "r+");
     validate(blob_data != NULL, "Failed to allocate memory for blob_data");
 
-    size_t write_size = fwrite(blob_header, sizeof(char), header_len, blob_data);
-    validate(write_size == header_len, "Failed to write blob header.");
+    size_t write_size = fwrite(blob_header, sizeof(char), header_size, blob_data);
+    validate(write_size == header_size, "Failed to write blob header.");
 
-    write_size = fwrite(src_file, sizeof(char), content_size, blob_data);
-    validate(write_size == header_len, "Failed to write blob content.");
+    char copy_buffer[BUFSIZ];
+    size_t n;
+    while ((n = fread(copy_buffer, sizeof(char), sizeof(copy_buffer), src_file)) > 0)
+    {
+        write_size = fwrite(copy_buffer, sizeof(char), n, blob_data);
+        validate(write_size == n, "Failed to write blob content.");
+    }
 
     rewind(blob_data);
 

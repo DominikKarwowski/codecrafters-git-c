@@ -9,7 +9,7 @@
 
 #define log_error(M, ...) \
     fprintf(stderr,\
-        "%s:%d: errno: %s " M "\n", \
+        "%s:%d: errno: %s; " M "\n", \
         __FILE__, __LINE__, errno_desc(), ##__VA_ARGS__)
 
 #define validate(A, M, ...) \
