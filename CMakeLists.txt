@@ -7,11 +7,18 @@ file(GLOB_RECURSE SOURCE_FILES src/*.c src/*.h)
 set(CMAKE_C_STANDARD 23) # Enable the C23 standard
 
 add_executable(git ${SOURCE_FILES}
-        src/cat-file.c
-        src/cat-file.h
-        src/debug_helper.h)
+        src/cat_file.c
+        src/cat_file.h
+        src/debug_helper.h
+        src/hash_object.c
+        src/hash_object.h
+        src/object_file_helpers.c
+        src/object_file_helpers.h)
 
 set(ZLIBPATH "/usr/local")
 target_include_directories(git PRIVATE ${ZLIBPATH}/include)
 target_link_directories(git PRIVATE ${ZLIBPATH}/lib)
 target_link_libraries(git PRIVATE libz.so)
+
+target_link_libraries(git PRIVATE ssl)
+target_link_libraries(git PRIVATE crypto)

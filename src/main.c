@@ -3,7 +3,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
-#include "cat-file.h"
+
+#include "cat_file.h"
+#include "hash_object.h"
 
 int init(void)
 {
@@ -55,6 +57,11 @@ int main(const int argc, char *argv[])
     if (strcmp(command, "cat-file") == 0)
     {
         return cat_file(argc, argv);
+    }
+
+    if (strcmp(command, "hash-object") == 0)
+    {
+        return hash_object(argc, argv);
     }
 
     fprintf(stderr, "Unknown command %s\n", command);

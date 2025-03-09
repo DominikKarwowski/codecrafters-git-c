@@ -1,14 +1,16 @@
-#include "cat-file.h"
+#include "cat_file.h"
 #include "debug_helper.h"
+#include "object_file_helpers.h"
 
 #include <assert.h>
 #include <limits.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <unistd.h>
 #include <zlib.h>
 
-#define CHUNK 65536
+bool pretty_print = false;
+bool show_type = false;
+bool show_size = false;
 
 static bool try_set_cat_file_opt(
     bool *opt,
@@ -36,12 +38,9 @@ static bool try_set_cat_file_opt(
     return true;
 }
 
-bool try_resolve_cat_file_opts(const int argc, char **argv)
+static bool try_resolve_cat_file_opts(const int argc, char **argv)
 {
     opterr = 0;
-    bool pretty_print = false;
-    bool show_type = false;
-    bool show_size = false;
     bool set_result;
 
     int opt;
@@ -74,31 +73,7 @@ error:
     return false;
 }
 
-static struct object_path get_obj_path(const char *obj_hash)
-{
-    struct object_path obj_path;
-
-    int i;
-    int j;
-
-    for (i = 0; i < 2; i++)
-    {
-        obj_path.subdir[i] = obj_hash[i];
-    }
-
-    obj_path.subdir[i] = '\0';
-
-    for (j = 0; j < 38; j++, i++)
-    {
-        obj_path.name[j] = obj_hash[i];
-    }
-
-    obj_path.name[j] = '\0';
-
-    return obj_path;
-}
-
-void print_inflate_result(FILE *source, FILE *dest)
+static void print_inflate_result(FILE *source, FILE *dest)
 {
     bool header_skipped = false;
 
@@ -163,11 +138,13 @@ void print_inflate_result(FILE *source, FILE *dest)
                 have = have - i;
                 const size_t write_size = fwrite(&out[i], 1, have, dest);
                 validate(write_size == have, "Failed writing to output stream.");
+                validate(ferror(dest) == 0, "Failed writing to output stream.");
             }
             else
             {
                 const size_t write_size = fwrite(out, 1, have, dest);
                 validate(write_size == have, "Failed writing to output stream.");
+                validate(ferror(dest) == 0, "Failed writing to output stream.");
             }
 
         } while (infstream.avail_out == 0);
@@ -189,18 +166,21 @@ int cat_file(const int argc, char *argv[])
 
     validate(try_resolve_cat_file_opts(argc, argv), "Failed to resolve options.");
 
-    struct object_path obj_path = get_obj_path(obj_hash);
+    if (pretty_print)
+    {
+        struct object_path obj_path = get_object_path(obj_hash);
 
-    char full_obj_path[PATH_MAX];
-    sprintf(full_obj_path, ".git/objects/%s/%s", obj_path.subdir, obj_path.name);
+        char full_obj_path[PATH_MAX];
+        sprintf(full_obj_path, ".git/objects/%s/%s", obj_path.subdir, obj_path.name);
 
-    FILE *obj_file = fopen(full_obj_path, "r");
+        FILE *obj_file = fopen(full_obj_path, "r");
 
-    validate(obj_file, "Failed to open object file: %s", full_obj_path);
+        validate(obj_file, "Failed to open object file: %s", full_obj_path);
 
-    print_inflate_result(obj_file, stdout);
+        print_inflate_result(obj_file, stdout);
 
-    fclose(obj_file);
+        fclose(obj_file);
+    }
 
     return 0;
 
