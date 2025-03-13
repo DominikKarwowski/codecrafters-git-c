@@ -166,6 +166,7 @@ static int write_blob(char *filename)
     {
         const int mkdir_result = mkdir(full_path, 0755);
         validate(mkdir_result == 0, "Failed to create directory '%s'.", full_path);
+        printf("Created directory '%s'.\n", full_path);
     }
 
     strcat(full_path, "/");
@@ -173,6 +174,7 @@ static int write_blob(char *filename)
 
     FILE *deflated_file = fopen(full_path, "w+");
     validate(deflated_file, "Failed to open file '%s'.", full_path);
+    printf("Opened file for writing '%s'.\n", full_path);
 
     rewind(blob_data);
     deflate_blob(blob_data, deflated_file);
