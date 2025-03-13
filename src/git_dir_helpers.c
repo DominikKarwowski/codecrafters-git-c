@@ -108,16 +108,11 @@ bool dir_exists(const char *path)
 {
     struct stat fs;
     const int result = stat(path, &fs);
-    validate(result == 0, "Failed to stat '%s'", path);
 
-    if (!S_ISDIR(fs.st_mode))
+    if (result == 0 && S_ISDIR(fs.st_mode))
     {
-        return false;
+        return true;
     }
-
-    return true;
-
-error:
 
     return false;
 }
