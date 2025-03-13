@@ -2,6 +2,7 @@
 #define DEBUG_HELPER_H
 
 #include <errno.h>
+#include <stdio.h>
 #include <string.h>
 
 #define errno_desc() \

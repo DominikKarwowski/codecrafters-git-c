@@ -1,6 +1,6 @@
 #include "cat_file.h"
 #include "debug_helper.h"
-#include "object_file_helpers.h"
+#include "git_dir_helpers.h"
 
 #include <assert.h>
 #include <limits.h>
@@ -137,14 +137,12 @@ static void print_inflate_result(FILE *source, FILE *dest)
 
                 have = have - i;
                 const size_t write_size = fwrite(&out[i], 1, have, dest);
-                validate(write_size == have, "Failed writing to output stream.");
-                validate(ferror(dest) == 0, "Failed writing to output stream.");
+                validate(write_size == have || ferror(dest) == 0, "Failed writing to output stream.");
             }
             else
             {
                 const size_t write_size = fwrite(out, 1, have, dest);
-                validate(write_size == have, "Failed writing to output stream.");
-                validate(ferror(dest) == 0, "Failed writing to output stream.");
+                validate(write_size == have || ferror(dest) == 0, "Failed writing to output stream.");
             }
 
         } while (infstream.avail_out == 0);

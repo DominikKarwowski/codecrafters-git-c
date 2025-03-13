@@ -1,7 +1,7 @@
 #include "hash_object.h"
 
 #include "debug_helper.h"
-#include "object_file_helpers.h"
+#include "git_dir_helpers.h"
 
 #include <assert.h>
 #include <limits.h>
@@ -147,19 +147,35 @@ static int write_blob(char *filename)
     unsigned char *result = calculate_hash(blob_data, blob_size, hash);
     validate(result, "Failed to calculate hash.");
 
-    struct object_path path = get_object_path(hash);
+    char hash_chars[40];
+    for (size_t i = 0; i < SHA_DIGEST_LENGTH; i++)
+    {
+        sprintf(&hash_chars[2 * i], "%02x", hash[i]);
+    }
+
+    struct object_path path = get_object_path(hash_chars);
+
+    char repo_root_path[PATH_MAX];
+    char *root = find_repository_root_dir(repo_root_path, PATH_MAX);
+    validate(root, "Not a git repository.");
 
     char full_path[PATH_MAX];
-    (void)sprintf(full_path, ".git/objects/%s", path.subdir);
+    (void)sprintf(full_path, "%s/.git/objects/%s", root, path.subdir);
 
-    const int mkdir_result = mkdir(full_path, 0755);
-    validate(mkdir_result == 0, "Failed to create directory '%s'.", full_path);
+    if (!dir_exists(full_path))
+    {
+        const int mkdir_result = mkdir(full_path, 0755);
+        validate(mkdir_result == 0, "Failed to create directory '%s'.", full_path);
+    }
 
-    FILE *deflated_file = fopen(full_path, "r+");
-    validate(deflated_file == NULL, "Failed to open file '%s'.", full_path);
+    strcat(full_path, "/");
+    strcat(full_path, path.name);
+
+    FILE *deflated_file = fopen(full_path, "w+");
+    validate(deflated_file, "Failed to open file '%s'.", full_path);
 
     rewind(blob_data);
-    deflate_blob(src_file, deflated_file);
+    deflate_blob(blob_data, deflated_file);
 
     fclose(src_file);
     fclose(blob_data);

@@ -1,6 +1,8 @@
 #ifndef OBJECT_FILE_HELPERS_H
 #define OBJECT_FILE_HELPERS_H
 
+#include <stddef.h>
+
 #define CHUNK 65536
 
 struct object_path
@@ -10,5 +12,9 @@ struct object_path
 };
 
 struct object_path get_object_path(const char* obj_hash);
+
+char *find_repository_root_dir(char *root_path, size_t root_path_len);
+
+bool dir_exists(const char *path);
 
 #endif //OBJECT_FILE_HELPERS_H

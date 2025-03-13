@@ -12,8 +12,8 @@ add_executable(git ${SOURCE_FILES}
         src/debug_helper.h
         src/hash_object.c
         src/hash_object.h
-        src/object_file_helpers.c
-        src/object_file_helpers.h)
+        src/git_dir_helpers.c
+        src/git_dir_helpers.h)
 
 set(ZLIBPATH "/usr/local")
 target_include_directories(git PRIVATE ${ZLIBPATH}/include)
