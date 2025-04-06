@@ -82,12 +82,12 @@ int cat_file(const int argc, char *argv[])
     {
         struct object_path obj_path = get_object_path(obj_hash);
 
-        char full_obj_path[PATH_MAX];
-        sprintf(full_obj_path, ".git/objects/%s/%s", obj_path.subdir, obj_path.name);
+        char git_obj_path[PATH_MAX];
+        sprintf(git_obj_path, ".git/objects/%s/%s", obj_path.subdir, obj_path.name);
 
-        FILE *obj_file = fopen(full_obj_path, "r");
+        FILE *obj_file = fopen(git_obj_path, "r");
 
-        validate(obj_file, "Failed to open object file: %s", full_obj_path);
+        validate(obj_file, "Failed to open object file: %s", git_obj_path);
 
         inflate_object(obj_file, stdout, CONTENT);
 

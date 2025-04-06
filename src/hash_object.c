@@ -127,7 +127,7 @@ static int write_blob(char *filename)
     const size_t blob_size = header_size + content_size;
 
     FILE *blob_data = fmemopen(NULL, blob_size, "r+");
-    validate(blob_data != NULL, "Failed to allocate memory for blob_data");
+    validate(blob_data, "Failed to allocate memory for blob_data");
 
     size_t write_size = fwrite(blob_header, sizeof(char), header_size, blob_data);
     validate(write_size == header_size, "Failed to write blob header.");

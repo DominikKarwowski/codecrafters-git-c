@@ -18,7 +18,7 @@ static int get_header_size(const unsigned char *out)
     return i;
 }
 
-void inflate_object(FILE *source, FILE *dest, section sect)
+void inflate_object(FILE *source, FILE *dest, const section sect)
 {
     bool header_skipped = false;
 
