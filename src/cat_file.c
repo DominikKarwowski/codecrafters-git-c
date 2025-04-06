@@ -1,12 +1,11 @@
 #include "cat_file.h"
-#include "debug_helper.h"
+#include "compression.h"
+#include "debug_helpers.h"
 #include "git_dir_helpers.h"
 
-#include <assert.h>
 #include <limits.h>
 #include <stdio.h>
 #include <unistd.h>
-#include <zlib.h>
 
 bool pretty_print = false;
 bool show_type = false;
@@ -73,96 +72,11 @@ error:
     return false;
 }
 
-static void print_inflate_result(FILE *source, FILE *dest)
-{
-    bool header_skipped = false;
-
-    z_stream infstream = {
-        .zalloc = Z_NULL,
-        .zfree = Z_NULL,
-        .opaque = Z_NULL,
-        .avail_in = 0,
-        .next_in = Z_NULL,
-    };
-
-    int ret = inflateInit(&infstream);
-    validate(ret == Z_OK, "Failed to initialize inflate.");
-
-    do
-    {
-        unsigned char in[CHUNK];
-        infstream.avail_in = fread(in, 1, CHUNK, source);
-
-        validate(ferror(source) == 0, "Failed to read source data.");
-
-        if (infstream.avail_in == 0)
-        {
-            break;
-        }
-
-        infstream.next_in = in;
-
-        do
-        {
-            unsigned char out[CHUNK];
-            infstream.avail_out = CHUNK;
-            infstream.next_out = out;
-            ret = inflate(&infstream, Z_NO_FLUSH);
-            assert(ret != Z_STREAM_ERROR);
-
-            // ReSharper disable once CppDefaultCaseNotHandledInSwitchStatement
-            switch (ret) // NOLINT(*-multiway-paths-covered)
-            {
-                case Z_NEED_DICT:
-                    ret = Z_DATA_ERROR; /* and fall through */
-                case Z_DATA_ERROR:
-                case Z_MEM_ERROR:
-                    validate(false, "Failed to inflate with Z error code: %d.", ret);
-            }
-
-            unsigned have = CHUNK - infstream.avail_out;
-
-            if (!header_skipped)
-            {
-                int i = 0;
-
-                while (out[i] != '\0')
-                {
-                    i++;
-                }
-
-                i++;
-
-                header_skipped = true;
-
-                have = have - i;
-                const size_t write_size = fwrite(&out[i], 1, have, dest);
-                validate(write_size == have || ferror(dest) == 0, "Failed writing to output stream.");
-            }
-            else
-            {
-                const size_t write_size = fwrite(out, 1, have, dest);
-                validate(write_size == have || ferror(dest) == 0, "Failed writing to output stream.");
-            }
-
-        } while (infstream.avail_out == 0);
-
-    } while (ret != Z_STREAM_END);
-
-    (void)inflateEnd(&infstream);
-
-    validate(ret == Z_STREAM_END, "Failed to inflate with Z error code: %d", Z_DATA_ERROR);
-    return;
-
-error:
-    (void)inflateEnd(&infstream);
-}
-
 int cat_file(const int argc, char *argv[])
 {
-    const char *obj_hash = argv[3];
-
     validate(try_resolve_cat_file_opts(argc, argv), "Failed to resolve options.");
+
+    const char *obj_hash = argv[3];
 
     if (pretty_print)
     {
@@ -175,7 +89,7 @@ int cat_file(const int argc, char *argv[])
 
         validate(obj_file, "Failed to open object file: %s", full_obj_path);
 
-        print_inflate_result(obj_file, stdout);
+        inflate_object(obj_file, stdout, CONTENT);
 
         fclose(obj_file);
     }

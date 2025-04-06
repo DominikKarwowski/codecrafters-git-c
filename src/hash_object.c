@@ -1,6 +1,6 @@
 #include "hash_object.h"
 
-#include "debug_helper.h"
+#include "debug_helpers.h"
 #include "git_dir_helpers.h"
 
 #include <assert.h>

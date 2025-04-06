@@ -6,6 +6,7 @@
 
 #include "cat_file.h"
 #include "hash_object.h"
+#include "ls_tree.h"
 
 int init(void)
 {
@@ -62,6 +63,11 @@ int main(const int argc, char *argv[])
     if (strcmp(command, "hash-object") == 0)
     {
         return hash_object(argc, argv);
+    }
+
+    if (strcmp(command, "ls-tree") == 0)
+    {
+        return ls_tree(argc, argv);
     }
 
     fprintf(stderr, "Unknown command %s\n", command);

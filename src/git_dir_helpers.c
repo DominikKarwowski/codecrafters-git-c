@@ -4,7 +4,7 @@
 #include <unistd.h>
 #include <sys/stat.h>
 
-#include "debug_helper.h"
+#include "debug_helpers.h"
 
 struct object_path get_object_path(const char *obj_hash)
 {
