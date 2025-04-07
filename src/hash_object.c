@@ -12,6 +12,8 @@
 #include <openssl/sha.h>
 #include <sys/stat.h>
 
+#include "compression.h"
+
 bool write_opt = false;
 
 static bool try_resolve_hash_object_opts(const int argc, char *argv[])
@@ -37,56 +39,6 @@ static bool try_resolve_hash_object_opts(const int argc, char *argv[])
 
 error:
     return false;
-}
-
-static void deflate_blob(FILE *source, FILE *dest)
-{
-    z_stream defstream = {
-        .zalloc = Z_NULL,
-        .zfree = Z_NULL,
-        .opaque = Z_NULL,
-    };
-
-    int ret = deflateInit(&defstream, Z_DEFAULT_COMPRESSION);
-    validate(ret == Z_OK, "Failed to initialize deflate.");
-
-    int flush;
-
-    do
-    {
-        unsigned char in[CHUNK];
-        defstream.avail_in = fread(in, 1, CHUNK, source);
-
-        validate(ferror(source) == 0, "Failed to read source data.");
-
-        flush = feof(source) ? Z_FINISH : Z_NO_FLUSH;
-        defstream.next_in = in;
-
-        do
-        {
-            unsigned char out[CHUNK];
-            defstream.avail_out = CHUNK;
-            defstream.next_out = out;
-            ret = deflate(&defstream, flush);
-            assert(ret != Z_STREAM_ERROR);
-
-            const unsigned have = CHUNK - defstream.avail_out;
-            const size_t write_size = fwrite(out, 1, have, dest);
-            validate(write_size == have, "Failed writing to output stream.");
-            validate(ferror(dest) == 0, "Failed writing to output stream.");
-
-        } while (defstream.avail_out == 0);
-
-        assert(defstream.avail_in == 0);
-
-    } while (flush != Z_FINISH);
-    assert(ret == Z_STREAM_END);
-
-    (void)deflateEnd(&defstream);
-    return;
-
-error:
-    (void)deflateEnd(&defstream);
 }
 
 static unsigned char *calculate_hash(FILE *source, const size_t src_size, unsigned char *hash)

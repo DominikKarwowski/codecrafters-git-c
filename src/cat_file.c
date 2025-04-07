@@ -5,7 +5,9 @@
 
 #include <limits.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <unistd.h>
+#include <zlib.h>
 
 bool pretty_print = false;
 bool show_type = false;
@@ -72,6 +74,58 @@ error:
     return false;
 }
 
+static int get_header_size(const char *content)
+{
+    int i = 0;
+
+    while (content[i] != '\0')
+    {
+        i++;
+    }
+
+    return i;
+}
+
+static int cat_file_pretty_print(const char *obj_hash)
+{
+    struct object_path obj_path = get_object_path(obj_hash);
+
+    char repo_root[PATH_MAX];
+    find_repository_root_dir(repo_root, PATH_MAX);
+
+    char git_obj_path[PATH_MAX];
+    sprintf(git_obj_path, "%s/.git/objects/%s/%s", repo_root, obj_path.subdir, obj_path.name);
+
+    FILE *obj_file = fopen(git_obj_path, "r");
+    validate(obj_file, "Failed to open object file: %s", git_obj_path);
+
+    char *inflated_buffer;
+    size_t inflated_buffer_size;
+    FILE *inflated = open_memstream(&inflated_buffer, &inflated_buffer_size);
+    validate(inflated != NULL, "Failed to allocate memory for object content.");
+
+    inflate_object(obj_file, inflated);
+
+    fclose(obj_file);
+    fclose(inflated);
+    validate(inflated_buffer, "Failed to inflate object file.");
+
+    const int header_size = get_header_size(inflated_buffer) + 1;
+
+    printf("%s", &inflated_buffer[header_size + 1]);
+
+    free(inflated_buffer);
+
+    return 0;
+
+error:
+    if (inflated) fclose(inflated);
+    if (obj_file) fclose(obj_file);
+    if (inflated_buffer) free(inflated_buffer);
+
+    return 1;
+}
+
 int cat_file(const int argc, char *argv[])
 {
     validate(try_resolve_cat_file_opts(argc, argv), "Failed to resolve options.");
@@ -80,18 +134,7 @@ int cat_file(const int argc, char *argv[])
 
     if (pretty_print)
     {
-        struct object_path obj_path = get_object_path(obj_hash);
-
-        char git_obj_path[PATH_MAX];
-        sprintf(git_obj_path, ".git/objects/%s/%s", obj_path.subdir, obj_path.name);
-
-        FILE *obj_file = fopen(git_obj_path, "r");
-
-        validate(obj_file, "Failed to open object file: %s", git_obj_path);
-
-        inflate_object(obj_file, stdout);
-
-        fclose(obj_file);
+        return cat_file_pretty_print(obj_hash);
     }
 
     return 0;

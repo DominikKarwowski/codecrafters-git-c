@@ -3,8 +3,6 @@
 
 #include <stddef.h>
 
-#define CHUNK 65536
-
 struct object_path
 {
     char subdir[3];
