@@ -89,7 +89,7 @@ int cat_file(const int argc, char *argv[])
 
         validate(obj_file, "Failed to open object file: %s", git_obj_path);
 
-        inflate_object(obj_file, stdout, CONTENT);
+        inflate_object(obj_file, stdout);
 
         fclose(obj_file);
     }

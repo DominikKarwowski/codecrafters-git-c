@@ -18,7 +18,7 @@ static int get_header_size(const unsigned char *out)
     return i;
 }
 
-void inflate_object(FILE *source, FILE *dest, const section sect)
+void inflate_object(FILE *source, FILE *dest)
 {
     bool header_skipped = false;
 
@@ -67,41 +67,80 @@ void inflate_object(FILE *source, FILE *dest, const section sect)
 
             unsigned have = CHUNK - infstream.avail_out;
 
-            if (sect == CONTENT)
+            if (!header_skipped)
             {
-                if (!header_skipped)
-                {
-                    const int header_size_terminated = get_header_size(out) + 1;
+                const int header_size_terminated = get_header_size(out) + 1;
 
-                    header_skipped = true;
+                header_skipped = true;
 
-                    have = have - header_size_terminated;
-                    const size_t write_size = fwrite(&out[header_size_terminated], 1, have, dest);
-                    validate(write_size == have || ferror(dest) == 0, "Failed writing to output stream.");
-                }
-                else
-                {
-                    const size_t write_size = fwrite(out, 1, have, dest);
-                    validate(write_size == have || ferror(dest) == 0, "Failed writing to output stream.");
-                }
+                have = have - header_size_terminated;
+                const size_t write_size = fwrite(&out[header_size_terminated], 1, have, dest);
+                validate(write_size == have || ferror(dest) == 0, "Failed writing to output stream.");
             }
-            else if (sect == HEADER)
+            else
             {
-                have = get_header_size(out);
-
                 const size_t write_size = fwrite(out, 1, have, dest);
                 validate(write_size == have || ferror(dest) == 0, "Failed writing to output stream.");
-
-                break;
             }
 
         } while (infstream.avail_out == 0);
 
     } while (ret != Z_STREAM_END);
 
+    validate(ret == Z_STREAM_END, "Failed to inflate with Z error code: %d", Z_DATA_ERROR);
+
     (void)inflateEnd(&infstream);
 
-    validate(ret == Z_STREAM_END, "Failed to inflate with Z error code: %d", Z_DATA_ERROR);
+    return;
+
+error:
+    (void)inflateEnd(&infstream);
+}
+
+void inflate_header(FILE *source, FILE *dest)
+{
+    z_stream infstream = {
+        .zalloc = Z_NULL,
+        .zfree = Z_NULL,
+        .opaque = Z_NULL,
+        .avail_in = 0,
+        .next_in = Z_NULL,
+    };
+
+    int ret = inflateInit(&infstream);
+    validate(ret == Z_OK, "Failed to initialize inflate.");
+
+    unsigned char in[CHUNK];
+    infstream.avail_in = fread(in, 1, CHUNK, source);
+
+    validate(ferror(source) == 0, "Failed to read source data.");
+    validate(infstream.avail_in != 0, "avail_in is empty.");
+
+    infstream.next_in = in;
+
+    unsigned char out[CHUNK];
+    infstream.avail_out = CHUNK;
+    infstream.next_out = out;
+    ret = inflate(&infstream, Z_NO_FLUSH);
+    assert(ret != Z_STREAM_ERROR);
+
+    // ReSharper disable once CppDefaultCaseNotHandledInSwitchStatement
+    switch (ret) // NOLINT(*-multiway-paths-covered)
+    {
+        case Z_NEED_DICT:
+            ret = Z_DATA_ERROR; /* and fall through */
+        case Z_DATA_ERROR:
+        case Z_MEM_ERROR:
+            validate(false, "Failed to inflate with Z error code: %d.", ret);
+    }
+
+    const unsigned have = get_header_size(out);
+
+    const size_t write_size = fwrite(out, 1, have, dest);
+    validate(write_size == have || ferror(dest) == 0, "Failed writing to output stream.");
+
+    (void)inflateEnd(&infstream);
+
     return;
 
 error:

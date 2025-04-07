@@ -58,9 +58,11 @@ int ls_tree(const int argc, char *argv[])
     FILE *header = fmemopen(NULL, GIT_OBJ_HEADER_SIZE, "r+");
     validate(header, "Failed to allocate memory for header.");
 
-    inflate_object(obj_file, header, HEADER);
+    inflate_header(obj_file, header);
 
     rewind(header);
+    rewind(obj_file);
+
     unsigned char obj_type[5];
     for (int i = 0; i < 4; i++)
     {
@@ -71,11 +73,10 @@ int ls_tree(const int argc, char *argv[])
 
     validate(strcmp(obj_type, "tree") == 0, "Invalid object type: %s", (char *)obj_type);
 
+    inflate_object(obj_file, stdout);
+
     fclose(header);
     fclose(obj_file);
-
-
-
 
     return 0;
 
