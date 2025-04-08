@@ -104,7 +104,7 @@ static int cat_file_pretty_print(const char *obj_hash)
 
     validate(inflated_buffer, "Failed to inflate object file.");
 
-    const int header_size = get_header_size(inflated_buffer) + 1;
+    const int header_size = get_header_size(inflated_buffer);
 
     printf("%s", &inflated_buffer[header_size + 1]);
 
