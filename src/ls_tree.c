@@ -141,8 +141,6 @@ static void print_tree_content(const char *inflated_buffer, const size_t inflate
     curr_pos++;
 
     struct git_tree_node *node;
-
-    // get subsequent chunks of tree content, obtain data and print relevant stuff
     while (curr_pos < inflated_buffer_size)
     {
         node = malloc(sizeof(struct git_tree_node));
