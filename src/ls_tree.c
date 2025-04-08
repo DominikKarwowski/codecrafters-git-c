@@ -63,6 +63,8 @@ struct git_tree_node
 
 static void destroy_git_tree_node(struct git_tree_node *node)
 {
+    if (!node) return;
+
     if (node->mode) free(node->mode);
     if (node->name) free(node->name);
     if (node->hash) free(node->hash);
@@ -109,7 +111,7 @@ error:
     return 0;
 }
 
-static void print_tree_node_full(const struct git_tree_node *node)
+static void print_tree_node_name_only(const struct git_tree_node *node)
 {
     if (!node) return;
 
@@ -117,7 +119,7 @@ static void print_tree_node_full(const struct git_tree_node *node)
     putchar('\n');
 }
 
-static void print_tree_node_name_only(const struct git_tree_node *node)
+static void print_tree_node_full(const struct git_tree_node *node)
 {
     if (!node) return;
 
