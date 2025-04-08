@@ -101,7 +101,7 @@ static int write_blob(char *filename)
     validate(result, "Failed to calculate hash.");
 
     char hash_hex[40];
-    hash_bytes_to_hex(hash, hash_hex);
+    hash_bytes_to_hex(hash_hex, hash);
 
     struct object_path path = get_object_path(hash_hex);
 
