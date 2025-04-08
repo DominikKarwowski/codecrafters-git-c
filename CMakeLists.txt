@@ -17,7 +17,9 @@ add_executable(git ${SOURCE_FILES}
         src/ls_tree.c
         src/ls_tree.h
         src/compression.c
-        src/compression.h)
+        src/compression.h
+        src/git_obj_helpers.c
+        src/git_obj_helpers.h)
 
 set(ZLIBPATH "/usr/local")
 target_include_directories(git PRIVATE ${ZLIBPATH}/include)

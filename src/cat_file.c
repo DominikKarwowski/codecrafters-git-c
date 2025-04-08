@@ -9,6 +9,8 @@
 #include <unistd.h>
 #include <zlib.h>
 
+#include "git_obj_helpers.h"
+
 bool pretty_print = false;
 bool show_type = false;
 bool show_size = false;
@@ -74,18 +76,6 @@ error:
     return false;
 }
 
-static int get_header_size(const char *content)
-{
-    int i = 0;
-
-    while (content[i] != '\0')
-    {
-        i++;
-    }
-
-    return i;
-}
-
 static int cat_file_pretty_print(const char *obj_hash)
 {
     struct object_path obj_path = get_object_path(obj_hash);
@@ -101,13 +91,17 @@ static int cat_file_pretty_print(const char *obj_hash)
 
     char *inflated_buffer;
     size_t inflated_buffer_size;
-    FILE *inflated = open_memstream(&inflated_buffer, &inflated_buffer_size);
-    validate(inflated != NULL, "Failed to allocate memory for object content.");
+    FILE *obj_inflated = open_memstream(&inflated_buffer, &inflated_buffer_size);
+    validate(obj_inflated != NULL, "Failed to allocate memory for object content.");
 
-    inflate_object(obj_file, inflated);
+    inflate_object(obj_file, obj_inflated);
 
     fclose(obj_file);
-    fclose(inflated);
+    obj_file = nullptr;
+
+    fclose(obj_inflated);
+    obj_inflated = nullptr;
+
     validate(inflated_buffer, "Failed to inflate object file.");
 
     const int header_size = get_header_size(inflated_buffer) + 1;
@@ -119,7 +113,7 @@ static int cat_file_pretty_print(const char *obj_hash)
     return 0;
 
 error:
-    if (inflated) fclose(inflated);
+    if (obj_inflated) fclose(obj_inflated);
     if (obj_file) fclose(obj_file);
     if (inflated_buffer) free(inflated_buffer);
 
