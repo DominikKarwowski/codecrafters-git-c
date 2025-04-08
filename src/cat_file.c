@@ -11,9 +11,9 @@
 
 #include "git_obj_helpers.h"
 
-bool pretty_print = false;
-bool show_type = false;
-bool show_size = false;
+bool pretty_print_opt = false;
+bool show_type_opt = false;
+bool show_size_opt = false;
 
 static bool try_set_cat_file_opt(
     bool *opt,
@@ -52,15 +52,15 @@ static bool try_resolve_cat_file_opts(const int argc, char **argv)
         switch (opt)
         {
             case 't':
-                set_result = try_set_cat_file_opt(&show_type, "-t", pretty_print, "-p", show_size, "-s");
+                set_result = try_set_cat_file_opt(&show_type_opt, "-t", pretty_print_opt, "-p", show_size_opt, "-s");
                 validate(set_result, "Failed to set 't' option.");
                 break;
             case 'p':
-                set_result = try_set_cat_file_opt(&pretty_print, "-p", show_type, "-t", show_size, "-s");
+                set_result = try_set_cat_file_opt(&pretty_print_opt, "-p", show_type_opt, "-t", show_size_opt, "-s");
                 validate(set_result, "Failed to set 'p' option.");
                 break;
             case 's':
-                set_result = try_set_cat_file_opt(&show_size, "-s", show_type, "-t", pretty_print, "-p");
+                set_result = try_set_cat_file_opt(&show_size_opt, "-s", show_type_opt, "-t", pretty_print_opt, "-p");
                 validate(set_result, "Failed to set 's' option.");
                 break;
             case '?':
@@ -76,8 +76,12 @@ error:
     return false;
 }
 
-static int cat_file_pretty_print(const char *obj_hash)
+int cat_file(const int argc, char *argv[])
 {
+    validate(try_resolve_cat_file_opts(argc, argv), "Failed to resolve options.");
+
+    const char *obj_hash = argv[3];
+
     struct object_path obj_path = get_object_path(obj_hash);
 
     char repo_root[PATH_MAX];
@@ -106,7 +110,20 @@ static int cat_file_pretty_print(const char *obj_hash)
 
     const int header_size = get_header_size(inflated_buffer);
 
-    printf("%s", &inflated_buffer[header_size + 1]);
+    if (pretty_print_opt)
+    {
+        printf("%s", &inflated_buffer[header_size + 1]);
+    }
+
+    if (show_type_opt)
+    {
+        int i = 0;
+        while (inflated_buffer[i] != ' ')
+        {
+            putc(inflated_buffer[i++], stdout);
+        }
+        putc('\n', stdout);
+    }
 
     free(inflated_buffer);
 
@@ -117,22 +134,5 @@ error:
     if (obj_file) fclose(obj_file);
     if (inflated_buffer) free(inflated_buffer);
 
-    return 1;
-}
-
-int cat_file(const int argc, char *argv[])
-{
-    validate(try_resolve_cat_file_opts(argc, argv), "Failed to resolve options.");
-
-    const char *obj_hash = argv[3];
-
-    if (pretty_print)
-    {
-        return cat_file_pretty_print(obj_hash);
-    }
-
-    return 0;
-
-error:
     return 1;
 }
