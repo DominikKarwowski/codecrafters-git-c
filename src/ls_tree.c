@@ -123,16 +123,38 @@ static void print_tree_node_full(const struct git_tree_node *node)
 {
     if (!node) return;
 
+    char hash_hex[40];
+    hash_bytes_to_hex(hash_hex, node->hash);
+
+    char *inflated_buffer = nullptr;
+
+    (void)get_object_content(hash_hex, &inflated_buffer);
+    validate(inflated_buffer, "Failed to obtain object content.");
+
+    char obj_type[16];
+    get_object_type(obj_type, inflated_buffer);
+
     const size_t leading_zeros = 6 - strlen(node->mode);
     for (size_t i = 0; i < leading_zeros; i++) putchar('0');
 
     printf("%s", node->mode);
     putchar(' ');
-    printf("%s", node->name);
+
+    printf("%s", obj_type);
     putchar(' ');
-    for (int i = 0; i < 20; i++)
-        printf("%02x", node->hash[i]);
+
+    printf("%s", hash_hex);
+    putchar(' ');
+
+    printf("%s", node->name);
     putchar('\n');
+
+    free(inflated_buffer);
+
+    return;
+
+error:
+    if (inflated_buffer) free(inflated_buffer);
 }
 
 static void print_tree_content(const char *inflated_buffer, const size_t inflated_buffer_size, const bool name_only)

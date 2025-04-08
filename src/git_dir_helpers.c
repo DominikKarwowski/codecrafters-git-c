@@ -90,8 +90,6 @@ char *find_repository_root_dir(char *root_path, const size_t root_path_len)
             break;
         }
 
-        printf("%s\n", root_path);
-
         const size_t curr_len = strlen(root_path);
         const char *p = get_parent_dir(root_path, curr_len);
         validate(p, "Failed to get parent directory.");

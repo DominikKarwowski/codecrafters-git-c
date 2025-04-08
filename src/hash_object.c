@@ -13,6 +13,7 @@
 #include <sys/stat.h>
 
 #include "compression.h"
+#include "git_obj_helpers.h"
 
 bool write_opt = false;
 
@@ -99,13 +100,10 @@ static int write_blob(char *filename)
     unsigned char *result = calculate_hash(blob_data, blob_size, hash);
     validate(result, "Failed to calculate hash.");
 
-    char hash_chars[40];
-    for (size_t i = 0; i < SHA_DIGEST_LENGTH; i++)
-    {
-        sprintf(&hash_chars[2 * i], "%02x", hash[i]);
-    }
+    char hash_hex[40];
+    hash_bytes_to_hex(hash, hash_hex);
 
-    struct object_path path = get_object_path(hash_chars);
+    struct object_path path = get_object_path(hash_hex);
 
     char repo_root_path[PATH_MAX];
     char *root = find_repository_root_dir(repo_root_path, PATH_MAX);
@@ -133,7 +131,7 @@ static int write_blob(char *filename)
     fclose(blob_data);
     fclose(deflated_file);
 
-    printf("%s", hash_chars);
+    printf("%s", hash_hex);
 
     return 0;
 

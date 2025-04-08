@@ -1,8 +1,9 @@
 #include "git_obj_helpers.h"
 
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <limits.h>
+#include <openssl/sha.h>
 
 #include "compression.h"
 #include "debug_helpers.h"
@@ -15,6 +16,14 @@ int get_header_size(const char *content)
     while (content[i] != '\0') i++;
 
     return i;
+}
+
+void hash_bytes_to_hex(char *hash_hex, const unsigned char *hash)
+{
+    for (size_t i = 0; i < SHA_DIGEST_LENGTH; i++)
+    {
+        sprintf(&hash_hex[2 * i], "%02x", hash[i]);
+    }
 }
 
 size_t get_object_content(const char *obj_hash, char **inflated_buffer)
@@ -47,4 +56,17 @@ error:
     if (inflated_buffer) free(inflated_buffer);
 
     return 0;
+}
+
+void get_object_type(char *obj_type, const char* object_content)
+{
+    int i = 0;
+
+    while (object_content[i] != ' ')
+    {
+        obj_type[i] = object_content[i];
+        i++;
+    }
+
+    obj_type[i] = '\0';
 }

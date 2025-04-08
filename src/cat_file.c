@@ -95,12 +95,10 @@ int cat_file(const int argc, char *argv[])
 
     if (show_type_opt)
     {
-        int i = 0;
-        while (inflated_buffer[i] != ' ')
-        {
-            putc(inflated_buffer[i++], stdout);
-        }
-        putc('\n', stdout);
+        char obj_type[16];
+        get_object_type(obj_type, inflated_buffer);
+
+        printf("%s", obj_type);
     }
 
     free(inflated_buffer);
