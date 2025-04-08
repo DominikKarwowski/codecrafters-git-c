@@ -109,7 +109,15 @@ error:
     return 0;
 }
 
-static void tree_content_full_print(const struct git_tree_node *node)
+static void print_tree_node_full(const struct git_tree_node *node)
+{
+    if (!node) return;
+
+    printf("%s", node->name);
+    putchar('\n');
+}
+
+static void print_tree_node_name_only(const struct git_tree_node *node)
 {
     if (!node) return;
 
@@ -143,11 +151,11 @@ static void print_tree_content(const char *inflated_buffer, const size_t inflate
 
         if (name_only)
         {
-            printf("to be implemented\n");
+            print_tree_node_name_only(node);
         }
         else
         {
-            tree_content_full_print(node);
+            print_tree_node_full(node);
         }
 
         destroy_git_tree_node(node);
