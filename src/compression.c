@@ -51,8 +51,8 @@ void deflate_blob(FILE *source, FILE *dest)
     (void)deflateEnd(&defstream);
     return;
 
-    error:
-        (void)deflateEnd(&defstream);
+error:
+    (void)deflateEnd(&defstream);
 }
 
 void inflate_object(FILE *source, FILE *dest)

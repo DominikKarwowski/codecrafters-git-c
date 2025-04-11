@@ -22,8 +22,8 @@ add_executable(git ${SOURCE_FILES}
         src/git_obj_helpers.h
         src/write_tree.c
         src/write_tree.h
-        src/queue.c
-        src/queue.h)
+        src/stack.c
+        src/stack.h)
 
 set(ZLIBPATH "/usr/local")
 target_include_directories(git PRIVATE ${ZLIBPATH}/include)
