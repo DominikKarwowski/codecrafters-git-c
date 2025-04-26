@@ -114,3 +114,38 @@ bool dir_exists(const char *path)
 
     return false;
 }
+
+const char *get_dir_name(const char *path)
+{
+    const unsigned long path_len = strlen(path);
+
+    if (path_len == 0)
+    {
+        return nullptr;
+    }
+
+    if (path_len == 1 && path[0] == '/')
+    {
+        return "root";
+    }
+
+    const char *path_cpy = path;
+
+    if (path[path_len - 1] == '/')
+    {
+        char temp[PATH_MAX];
+        strncpy(temp, path, PATH_MAX);
+        temp[path_len - 1] = '\0';
+        path_cpy = temp;
+    }
+
+    const char *p = strrchr(path_cpy, '/');
+    p++;
+
+    if (*p == '\0')
+    {
+        return nullptr;
+    }
+
+    return p;
+}

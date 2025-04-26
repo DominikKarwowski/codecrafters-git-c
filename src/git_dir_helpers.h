@@ -15,4 +15,6 @@ char *find_repository_root_dir(char *root_path, size_t root_path_len);
 
 bool dir_exists(const char *path);
 
+const char *get_dir_name(const char *path);
+
 #endif //OBJECT_FILE_HELPERS_H

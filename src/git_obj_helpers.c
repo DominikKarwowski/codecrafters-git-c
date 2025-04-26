@@ -14,8 +14,8 @@ int get_header_size(const char *content)
 {
     int i = 0;
 
-    while (content[i] != '\0') i++;
-
+    while (content[i] != '\0') { fputc(content[i], stdout); i++; }
+    fputc('\n', stdout);
     return i;
 }
 
@@ -127,7 +127,7 @@ unsigned char *create_blob(char *filename, FILE *blob_data, unsigned char hash[S
     rewind(blob_data);
 
     unsigned char *result = calculate_hash(blob_data, blob_size, hash);
-    validate(result, "Failed to calculate hash.");
+    validate(result, "Failed to calculate blob hash.");
 
     return hash;
 
@@ -138,12 +138,39 @@ error:
     return nullptr;
 }
 
-char *write_blob(char *filename, char *hash_hex)
+unsigned char *create_tree(const buffer *tree_buffer, FILE *tree_data, unsigned char hash[SHA_DIGEST_LENGTH])
 {
-    FILE *blob_data = nullptr;
-    unsigned char hash[SHA_DIGEST_LENGTH];
-    validate(create_blob(filename, blob_data, hash), "Failed to create a blob object.");
+    char tree_header[24];
 
+    const int header_size = sprintf(tree_header, "tree %lu", tree_buffer->size) + 1;
+    const size_t tree_size = header_size + tree_buffer->size;
+
+    tree_data = fmemopen(NULL, tree_size, "r+");
+    validate(tree_data, "Failed to allocate memory for tree_data");
+
+    size_t write_size = fwrite(tree_header, sizeof(char), header_size, tree_data);
+    validate(write_size == header_size, "Failed to write tree header.");
+
+    write_size = fwrite(tree_buffer->data, sizeof(char), tree_buffer->size, tree_data);
+    validate(write_size == tree_buffer->size, "Failed to write tree content.");
+
+    free(tree_buffer->data);
+    rewind(tree_data);
+
+    unsigned char *result = calculate_hash(tree_data, tree_size, hash);
+    validate(result, "Failed to calculate tree hash.");
+
+    return hash;
+
+error:
+    if (tree_buffer->data) free(tree_buffer->data);
+    if (tree_data) fclose(tree_data);
+
+    return nullptr;
+}
+
+static char *write_git_object(char *hash_hex, FILE *object_data, unsigned char hash[20])
+{
     hash_bytes_to_hex(hash_hex, hash);
 
     struct object_path path = get_object_path(hash_hex);
@@ -167,16 +194,50 @@ char *write_blob(char *filename, char *hash_hex)
     FILE *deflated_file = fopen(full_path, "w+");
     validate(deflated_file, "Failed to open file '%s'.", full_path);
 
-    deflate_blob(blob_data, deflated_file);
+    deflate_blob(object_data, deflated_file);
 
-    fclose(blob_data);
     fclose(deflated_file);
 
     return hash_hex;
 
 error:
-    if (blob_data) fclose(blob_data);
     if (deflated_file) fclose(deflated_file);
+
+    return nullptr;
+}
+
+char *write_blob_object(char *filename, char *hash_hex)
+{
+    FILE *blob_data = nullptr;
+    unsigned char hash[SHA_DIGEST_LENGTH];
+    validate(create_blob(filename, blob_data, hash), "Failed to create a blob object.");
+
+    validate(write_git_object(hash_hex, blob_data, hash), "Failed to write blob object.");
+
+    fclose(blob_data);
+
+    return hash_hex;
+
+error:
+    if (blob_data) fclose(blob_data);
+
+    return nullptr;
+}
+
+char *write_tree_object(const buffer *tree_buffer, char *hash_hex)
+{
+    FILE *tree_data = nullptr;
+    unsigned char hash[SHA_DIGEST_LENGTH];
+    validate(create_tree(tree_buffer, tree_data, hash), "Failed to create a tree object.");
+
+    validate(write_git_object(hash_hex, tree_data, hash), "Failed to write tree object.");
+
+    fclose(tree_data);
+
+    return hash_hex;
+
+    error:
+        if (tree_data) fclose(tree_data);
 
     return nullptr;
 }

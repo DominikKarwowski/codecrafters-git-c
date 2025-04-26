@@ -48,20 +48,29 @@ error:
 }
 
 static bool append_tree_entry(
-    FILE *tree_content,
+    FILE *parent_tree_content,
     const char *dir_entry_name,
-    const mode_t filemode,
-    char file_full_path[PATH_MAX])
+    const buffer *tree_data_buffer)
 {
+    FILE *tree_data = nullptr;
+    unsigned char hash[SHA_DIGEST_LENGTH];
+    validate(create_tree(tree_data_buffer, tree_data, hash), "Failed to create a blob object.");
 
+    const char* permissions = "40000";
+
+    fwrite(permissions, sizeof(char), 5, parent_tree_content);
+    fputc(' ', parent_tree_content);
+    fwrite(dir_entry_name, sizeof(char), strlen(dir_entry_name), parent_tree_content);
+    fputc('\0', parent_tree_content);
+    fwrite(hash, sizeof(char), SHA_DIGEST_LENGTH, parent_tree_content);
+
+    return true;
+
+error:
+    if (tree_data) fclose(tree_data);
+
+    return false;
 }
-
-// TODO: move to a higher level and reuse in other places
-typedef struct buffer
-{
-    char *data;
-    size_t size;
-} buffer;
 
 typedef struct proc_dir
 {
@@ -178,6 +187,10 @@ static bool is_dir_entry_fully_processed(const proc_dir *proc_dir)
 
 int write_tree(int argc, char *argv[])
 {
+    buffer tree_object_buffer = { .data = nullptr, .size = 0, };
+    FILE* tree_object = open_memstream(&tree_object_buffer.data, &tree_object_buffer.size);
+    validate(tree_object, "Failed to open memory stream.");
+
     char repo_root_path[PATH_MAX];
     char *root = find_repository_root_dir(repo_root_path, PATH_MAX);
     validate(root, "Not a git repository.");
@@ -198,30 +211,39 @@ int write_tree(int argc, char *argv[])
 
         if (is_dir_entry_fully_processed(curr))
         {
-            // add to tree data
+            const proc_dir *parent = Stack_peek(dirs);
+
+            FILE *tree_data_stream = parent
+                ? parent->data_stream
+                : tree_object;
+
+            buffer tree_data_buffer = parent
+                ? parent->buffer
+                : tree_object_buffer;
+
+            append_tree_entry(tree_data_stream, get_dir_name(curr->path), &tree_data_buffer);
 
             free(curr->buffer.data);
             curr->buffer = (buffer){ nullptr, 0 };
         }
     }
 
-    char git_objects_path[PATH_MAX];
-    (void)sprintf(git_objects_path, "%s/objects", root);
+    char hash_hex[40];
+    char *hash = write_tree_object(&tree_object_buffer, hash_hex);
+    validate(hash, "Failed to write tree.");
 
-    // deflate tree obj
-    //
+    printf("%s", hash_hex);
 
-    // write tree object
-    //
-
-    if (curr->buffer.data) free(curr->buffer.data);
-
-    Stack_destroy(dirs, proc_dir_cleaner);
+    fclose(tree_object);
+    free(tree_object_buffer.data);
+    Stack_destroy(dirs, (StackNodeCleaner)proc_dir_cleaner);
 
     return 0;
 
 error:
-    if (dirs) Stack_destroy(dirs, proc_dir_cleaner);
+    if (dirs) Stack_destroy(dirs, (StackNodeCleaner)proc_dir_cleaner);
+    if (tree_object) fclose(tree_object);
+    if (tree_object_buffer.data) free(tree_object_buffer.data);
 
     return 1;
 }

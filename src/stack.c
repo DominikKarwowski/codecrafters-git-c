@@ -51,7 +51,16 @@ void *Stack_pop(Stack *stack)
     return value;
 }
 
-void Stack_destroy(Stack *stack, void (*cleaner)(void *))
+void *Stack_peek(const Stack *stack)
+{
+    if (!stack->top) return nullptr;
+
+    const StackNode *node = stack->top;
+
+    return node->value;
+}
+
+void Stack_destroy(Stack *stack, const StackNodeCleaner cleaner)
 {
     if (!stack) return;
 

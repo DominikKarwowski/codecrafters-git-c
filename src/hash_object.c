@@ -44,7 +44,7 @@ int hash_object(const int argc, char *argv[])
     if (write_opt)
     {
         char hash_hex[40];
-        char *hash = write_blob(filename, hash_hex);
+        char *hash = write_blob_object(filename, hash_hex);
         validate(hash, "Failed to write blob.");
 
         printf("%s", hash_hex);
