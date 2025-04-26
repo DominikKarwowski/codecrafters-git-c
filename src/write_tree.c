@@ -21,11 +21,11 @@ static bool append_blob_entry(
     FILE *tree_content,
     const char *dir_entry_name,
     const mode_t filemode,
-    char file_full_path[PATH_MAX])
+    char *file_full_path)
 {
     FILE *blob_data = nullptr;
     unsigned char hash[SHA_DIGEST_LENGTH];
-    validate(create_blob(file_full_path, blob_data, hash), "Failed to create a blob object.");
+    validate(create_blob(file_full_path, &blob_data, hash), "Failed to create a blob object.");
 
     const char *permissions = is_executable(filemode)
         ? "100755"
@@ -54,7 +54,7 @@ static bool append_tree_entry(
 {
     FILE *tree_data = nullptr;
     unsigned char hash[SHA_DIGEST_LENGTH];
-    validate(create_tree(tree_data_buffer, tree_data, hash), "Failed to create a blob object.");
+    validate(create_tree(tree_data_buffer, &tree_data, hash), "Failed to create a blob object.");
 
     const char* permissions = "40000";
 
@@ -93,14 +93,16 @@ static bool push_dir_for_processing(Stack *dirs, char *path)
     DIR *dir = opendir(path);
     validate(dir, "Failed to open directory '%s'.", path);
 
-    proc_dir proc_dir = {
-        .path = path,
-        .dir_to_process = dir,
-        .data_stream = tree_content,
-        .buffer = tree,
-    };
+    proc_dir *proc_dir = malloc(sizeof(struct proc_dir));
+    validate(proc_dir, "Failed to allocate memory for directory '%s'.", path);
 
-    Stack_push(dirs, &proc_dir);
+    proc_dir->path = path;
+    proc_dir->dir_to_process = dir;
+    proc_dir->data_stream = tree_content;
+    proc_dir->buffer = tree;
+
+    Stack_push(dirs, proc_dir);
+
     return true;
 
 error:
@@ -111,12 +113,25 @@ error:
     return false;
 }
 
+static void proc_dir_cleaner(proc_dir *proc_dir)
+{
+    if (!proc_dir) return;
+
+    if (proc_dir->path) free(proc_dir->path);
+    if (proc_dir->dir_to_process) closedir(proc_dir->dir_to_process);
+    if (proc_dir->data_stream) fclose(proc_dir->data_stream);
+    if (proc_dir->buffer.data) free(proc_dir->buffer.data);
+
+    free(proc_dir);
+}
+
 static bool process_dir_entry(Stack *dirs, proc_dir *proc_dir)
 {
     struct dirent *dir_entry;
     while ((dir_entry = readdir(proc_dir->dir_to_process)) != NULL)
     {
-        char file_full_path[PATH_MAX];
+        char *file_full_path = malloc(PATH_MAX);
+        validate(file_full_path, "Failed to allocate memory");
         snprintf(file_full_path, PATH_MAX, "%s/%s", proc_dir->path, dir_entry->d_name);
 
         struct stat fs;
@@ -126,8 +141,9 @@ static bool process_dir_entry(Stack *dirs, proc_dir *proc_dir)
         {
             bool result = append_blob_entry(proc_dir->data_stream, dir_entry->d_name, fs.st_mode, file_full_path);
             validate(result, "Failed to write blob entry for '%s'.", file_full_path);
+            free(file_full_path);
         }
-        else if (S_ISDIR(fs.st_mode))
+        else if (S_ISDIR(fs.st_mode) && !is_current_or_parent_dir(dir_entry->d_name))
         {
             Stack_push(dirs, proc_dir);
 
@@ -150,34 +166,9 @@ static bool process_dir_entry(Stack *dirs, proc_dir *proc_dir)
     return true;
 
 error:
-    if (proc_dir->dir_to_process)
-    {
-        closedir(proc_dir->dir_to_process);
-        proc_dir->dir_to_process = nullptr;
-    }
-
-    if (proc_dir->data_stream)
-    {
-        fclose(proc_dir->data_stream);
-        proc_dir->data_stream = nullptr;
-    }
-
-    if (proc_dir->buffer.data)
-    {
-        free(proc_dir->buffer.data);
-        proc_dir->buffer.data = nullptr;
-    }
+    proc_dir_cleaner(proc_dir);
 
     return false;
-}
-
-static void proc_dir_cleaner(proc_dir *proc_dir)
-{
-    if (!proc_dir) return;
-
-    if (proc_dir->dir_to_process) closedir(proc_dir->dir_to_process);
-    if (proc_dir->data_stream) fclose(proc_dir->data_stream);
-    if (proc_dir->buffer.data) free(proc_dir->buffer.data);
 }
 
 static bool is_dir_entry_fully_processed(const proc_dir *proc_dir)
@@ -191,7 +182,9 @@ int write_tree(int argc, char *argv[])
     FILE* tree_object = open_memstream(&tree_object_buffer.data, &tree_object_buffer.size);
     validate(tree_object, "Failed to open memory stream.");
 
-    char repo_root_path[PATH_MAX];
+    char *repo_root_path = malloc(PATH_MAX);
+    validate(repo_root_path, "Failed to allocate memory");
+
     char *root = find_repository_root_dir(repo_root_path, PATH_MAX);
     validate(root, "Not a git repository.");
 
@@ -200,10 +193,9 @@ int write_tree(int argc, char *argv[])
     bool result = push_dir_for_processing(dirs, root);
     validate(result, "Failed to push subdir '%s' on stack.", root);
 
-    proc_dir *curr = nullptr;
     while (!Stack_is_empty(dirs))
     {
-        curr = Stack_pop(dirs);
+        proc_dir *curr = Stack_pop(dirs);
         validate(curr, "Failed to obtain data from the stack.");
 
         result = process_dir_entry(dirs, curr);

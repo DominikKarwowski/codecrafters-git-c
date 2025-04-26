@@ -149,3 +149,8 @@ const char *get_dir_name(const char *path)
 
     return p;
 }
+
+bool is_current_or_parent_dir(const char *dir_name)
+{
+    return strcmp(dir_name, ".") == 0 || strcmp(dir_name, "..") == 0;
+}
