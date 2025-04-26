@@ -54,14 +54,8 @@ static bool is_expected_obj_type(const char *obj_content, const char *expected, 
     return true;
 }
 
-struct git_tree_node
-{
-    char *mode;
-    char *name;
-    unsigned char *hash;
-};
 
-static void destroy_git_tree_node(struct git_tree_node *node)
+static void destroy_git_tree_node(git_tree_node *node)
 {
     if (!node) return;
 
@@ -72,7 +66,7 @@ static void destroy_git_tree_node(struct git_tree_node *node)
     free(node);
 }
 
-static size_t try_set_node(struct git_tree_node *node, const char *obj_content, const size_t start)
+static size_t try_set_node(git_tree_node *node, const char *obj_content, const size_t start)
 {
     size_t curr_pos = start;
     size_t elem_start = start;
@@ -111,7 +105,7 @@ error:
     return 0;
 }
 
-static void print_tree_node_name_only(const struct git_tree_node *node)
+static void print_tree_node_name_only(const git_tree_node *node)
 {
     if (!node) return;
 
@@ -119,7 +113,7 @@ static void print_tree_node_name_only(const struct git_tree_node *node)
     putchar('\n');
 }
 
-static void print_tree_node_full(const struct git_tree_node *node)
+static void print_tree_node_full(const git_tree_node *node)
 {
     if (!node) return;
 
@@ -162,10 +156,10 @@ static void print_tree_content(const char *inflated_buffer, const size_t inflate
     size_t curr_pos = get_header_size(inflated_buffer);
     curr_pos++;
 
-    struct git_tree_node *node;
+    git_tree_node *node;
     while (curr_pos < inflated_buffer_size)
     {
-        node = malloc(sizeof(struct git_tree_node));
+        node = malloc(sizeof(git_tree_node));
         validate(node, "Failed to allocate memory.");
 
         curr_pos = try_set_node(node, inflated_buffer, curr_pos);

@@ -4,7 +4,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <zlib.h>
-#include <openssl/sha.h>
 #include <sys/stat.h>
 
 #include "compression.h"

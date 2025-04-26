@@ -51,13 +51,14 @@ void *Stack_pop(Stack *stack)
     return value;
 }
 
-void Stack_destroy(Stack *stack)
+void Stack_destroy(Stack *stack, void (*cleaner)(void *))
 {
     if (!stack) return;
 
     while (stack->top)
     {
-        (void)Stack_pop(stack);
+        void *value = Stack_pop(stack);
+        cleaner(value);
     }
 
     free(stack);

@@ -14,12 +14,12 @@ typedef struct Stack
 
 Stack *Stack_create();
 
-bool Stack_is_empty(Stack *stack);
+bool Stack_is_empty(const Stack *stack);
 
 void Stack_push(Stack *stack, void *value);
 
 void *Stack_pop(Stack *stack);
 
-void Stack_destroy(Stack *stack);
+void Stack_destroy(Stack *stack, void (*cleaner)(void *));
 
 #endif //STACK_H

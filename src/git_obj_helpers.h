@@ -3,6 +3,14 @@
 
 #include <stddef.h>
 #include <stdio.h>
+#include <openssl/sha.h>
+
+typedef struct git_tree_node
+{
+    char *mode;
+    char *name;
+    unsigned char *hash;
+} git_tree_node;
 
 int get_header_size(const char *content);
 
@@ -12,7 +20,7 @@ size_t get_object_content(const char *obj_hash, char **inflated_buffer);
 
 void get_object_type(char *obj_type, const char* object_content);
 
-char *create_blob(char *filename, FILE *blob_data, char *hash_hex);
+unsigned char *create_blob(char *filename, FILE *blob_data, unsigned char hash[SHA_DIGEST_LENGTH]);
 
 char *write_blob(char *filename, char *hash_hex);
 
