@@ -60,7 +60,7 @@ void *Stack_peek(const Stack *stack)
     return node->value;
 }
 
-void Stack_destroy(Stack *stack, const StackNodeCleaner cleaner)
+void Stack_destroy(Stack *stack, const StackElemCleaner cleaner)
 {
     if (!stack) return;
 

@@ -3,7 +3,6 @@
 #include <dirent.h>
 #include <limits.h>
 #include <stdlib.h>
-#include <unistd.h>
 #include <openssl/sha.h>
 #include <sys/stat.h>
 
@@ -50,7 +49,7 @@ error:
 static bool append_tree_entry(
     FILE *parent_tree_content,
     const char *dir_entry_name,
-    const buffer *tree_data_buffer)
+    buffer *tree_data_buffer)
 {
     FILE *tree_data = nullptr;
     unsigned char hash[SHA_DIGEST_LENGTH];
@@ -77,52 +76,54 @@ typedef struct proc_dir
     char *path;
     DIR *dir_to_process;
     FILE *data_stream;
-    buffer buffer;
+    buffer *buffer;
 } proc_dir;
 
-static bool push_dir_for_processing(Stack *dirs, char *path)
-{
-    buffer tree = {
-        .data = nullptr,
-        .size = 0,
-    };
-
-    FILE *tree_content = open_memstream(&tree.data, &tree.size);
-    validate(tree_content, "Failed to open memory stream.");
-
-    DIR *dir = opendir(path);
-    validate(dir, "Failed to open directory '%s'.", path);
-
-    proc_dir *proc_dir = malloc(sizeof(struct proc_dir));
-    validate(proc_dir, "Failed to allocate memory for directory '%s'.", path);
-
-    proc_dir->path = path;
-    proc_dir->dir_to_process = dir;
-    proc_dir->data_stream = tree_content;
-    proc_dir->buffer = tree;
-
-    Stack_push(dirs, proc_dir);
-
-    return true;
-
-error:
-    if (tree_content) fclose(tree_content);
-    if (tree.data) free(tree.data);
-    if (dir) closedir(dir);
-
-    return false;
-}
-
-static void proc_dir_cleaner(proc_dir *proc_dir)
+static void destroy_proc_dir(proc_dir *proc_dir)
 {
     if (!proc_dir) return;
 
     if (proc_dir->path) free(proc_dir->path);
     if (proc_dir->dir_to_process) closedir(proc_dir->dir_to_process);
     if (proc_dir->data_stream) fclose(proc_dir->data_stream);
-    if (proc_dir->buffer.data) free(proc_dir->buffer.data);
+
+    if (proc_dir->buffer)
+    {
+        if (proc_dir->buffer->data) free(proc_dir->buffer->data);
+        free(proc_dir->buffer);
+    }
 
     free(proc_dir);
+}
+
+static bool push_dir_for_processing(Stack *dirs, char *path)
+{
+    DIR *dir = opendir(path);
+    validate(dir, "Failed to open directory '%s'.", path);
+
+    proc_dir *proc_dir = malloc(sizeof(struct proc_dir));
+    validate(proc_dir, "Failed to allocate memory.");
+
+    proc_dir->buffer = malloc(sizeof(buffer));
+    validate(proc_dir->buffer, "Failed to allocate memory.");
+
+    FILE *tree_content = open_memstream(&proc_dir->buffer->data, &proc_dir->buffer->size);
+    validate(tree_content, "Failed to open memory stream.");
+
+    proc_dir->path = path;
+    proc_dir->dir_to_process = dir;
+    proc_dir->data_stream = tree_content;
+
+    Stack_push(dirs, proc_dir);
+
+    return true;
+
+error:
+    if (dir) closedir(dir);
+    if (tree_content) fclose(tree_content);
+    destroy_proc_dir(proc_dir);
+
+    return false;
 }
 
 static bool process_dir_entry(Stack *dirs, proc_dir *proc_dir)
@@ -166,20 +167,20 @@ static bool process_dir_entry(Stack *dirs, proc_dir *proc_dir)
     return true;
 
 error:
-    proc_dir_cleaner(proc_dir);
+    destroy_proc_dir(proc_dir);
 
     return false;
 }
 
 static bool is_dir_entry_fully_processed(const proc_dir *proc_dir)
 {
-    return proc_dir->buffer.size != 0;
+    return proc_dir->buffer->size != 0;
 }
 
 int write_tree(int argc, char *argv[])
 {
-    buffer tree_object_buffer = { .data = nullptr, .size = 0, };
-    FILE* tree_object = open_memstream(&tree_object_buffer.data, &tree_object_buffer.size);
+    buffer *tree_object_buffer = malloc(sizeof(buffer));
+    FILE* tree_object = open_memstream(&tree_object_buffer->data, &tree_object_buffer->size);
     validate(tree_object, "Failed to open memory stream.");
 
     char *repo_root_path = malloc(PATH_MAX);
@@ -209,33 +210,29 @@ int write_tree(int argc, char *argv[])
                 ? parent->data_stream
                 : tree_object;
 
-            buffer tree_data_buffer = parent
-                ? parent->buffer
-                : tree_object_buffer;
+            append_tree_entry(tree_data_stream, get_dir_name(curr->path), curr->buffer);
 
-            append_tree_entry(tree_data_stream, get_dir_name(curr->path), &tree_data_buffer);
-
-            free(curr->buffer.data);
-            curr->buffer = (buffer){ nullptr, 0 };
+            destroy_proc_dir(curr);
         }
     }
 
     char hash_hex[40];
-    char *hash = write_tree_object(&tree_object_buffer, hash_hex);
+    char *hash = write_tree_object(tree_object_buffer, hash_hex);
     validate(hash, "Failed to write tree.");
 
     printf("%s", hash_hex);
 
     fclose(tree_object);
-    free(tree_object_buffer.data);
-    Stack_destroy(dirs, (StackNodeCleaner)proc_dir_cleaner);
+    free(tree_object_buffer->data);
+    free(tree_object_buffer);
+    Stack_destroy(dirs, (StackElemCleaner)destroy_proc_dir);
 
     return 0;
 
 error:
-    if (dirs) Stack_destroy(dirs, (StackNodeCleaner)proc_dir_cleaner);
+    if (dirs) Stack_destroy(dirs, (StackElemCleaner)destroy_proc_dir);
     if (tree_object) fclose(tree_object);
-    if (tree_object_buffer.data) free(tree_object_buffer.data);
+    if (tree_object_buffer->data) free(tree_object_buffer->data);
 
     return 1;
 }

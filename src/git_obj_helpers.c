@@ -14,8 +14,8 @@ int get_header_size(const char *content)
 {
     int i = 0;
 
-    while (content[i] != '\0') { fputc(content[i], stdout); i++; }
-    fputc('\n', stdout);
+    while (content[i] != '\0') i++;
+
     return i;
 }
 
@@ -154,7 +154,9 @@ unsigned char *create_tree(const buffer *tree_buffer, FILE **tree_data, unsigned
     write_size = fwrite(tree_buffer->data, sizeof(char), tree_buffer->size, *tree_data);
     validate(write_size == tree_buffer->size, "Failed to write tree content.");
 
-    free(tree_buffer->data);
+    // free(tree_buffer->data);
+    // free(tree_buffer);
+
     rewind(*tree_data);
 
     unsigned char *result = calculate_hash(*tree_data, tree_size, hash);
@@ -163,8 +165,8 @@ unsigned char *create_tree(const buffer *tree_buffer, FILE **tree_data, unsigned
     return hash;
 
 error:
-    if (tree_buffer->data) free(tree_buffer->data);
-    if (tree_data) fclose(*tree_data);
+    // if (tree_buffer->data) free(tree_buffer->data);
+    if (*tree_data) fclose(*tree_data);
 
     return nullptr;
 }
