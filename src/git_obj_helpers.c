@@ -31,11 +31,21 @@ size_t get_object_content(const char *obj_hash, char **inflated_buffer)
 {
     struct object_path obj_path = get_object_path(obj_hash);
 
-    char repo_root[PATH_MAX];
+    char *repo_root = malloc(sizeof(char) * PATH_MAX);
+    validate(repo_root, "Failed to allocate memory.");
+
     find_repository_root_dir(repo_root, PATH_MAX);
 
-    char git_obj_path[PATH_MAX];
-    snprintf(git_obj_path, PATH_MAX, "%s/.git/objects/%s/%s", repo_root, obj_path.subdir, obj_path.name);
+    char *git_obj_path = malloc(sizeof(char) * PATH_MAX);
+    validate(git_obj_path, "Failed to allocate memory.");
+
+    (void)snprintf(
+        git_obj_path,
+        PATH_MAX,
+        "%s/.git/objects/%s/%s",
+        repo_root,
+        obj_path.subdir,
+        obj_path.name);
 
     FILE *obj_file = fopen(git_obj_path, "r");
     validate(obj_file, "Failed to open object file: %s", git_obj_path);
@@ -46,12 +56,16 @@ size_t get_object_content(const char *obj_hash, char **inflated_buffer)
 
     inflate_object(obj_file, obj_inflated);
 
+    free(repo_root);
+    free(git_obj_path);
     fclose(obj_file);
     fclose(obj_inflated);
 
     return inflated_buffer_size;
 
 error:
+    if (repo_root) free(repo_root);
+    if (git_obj_path) free(git_obj_path);
     if (obj_inflated) fclose(obj_inflated);
     if (obj_file) fclose(obj_file);
     if (inflated_buffer) free(inflated_buffer);
@@ -59,7 +73,7 @@ error:
     return 0;
 }
 
-void get_object_type(char *obj_type, const char* object_content)
+void get_object_type(char *obj_type, const char *object_content)
 {
     int i = 0;
 
@@ -154,9 +168,6 @@ unsigned char *create_tree(const buffer *tree_buffer, FILE **tree_data, unsigned
     write_size = fwrite(tree_buffer->data, sizeof(char), tree_buffer->size, *tree_data);
     validate(write_size == tree_buffer->size, "Failed to write tree content.");
 
-    // free(tree_buffer->data);
-    // free(tree_buffer);
-
     rewind(*tree_data);
 
     unsigned char *result = calculate_hash(*tree_data, tree_size, hash);
@@ -165,7 +176,6 @@ unsigned char *create_tree(const buffer *tree_buffer, FILE **tree_data, unsigned
     return hash;
 
 error:
-    // if (tree_buffer->data) free(tree_buffer->data);
     if (*tree_data) fclose(*tree_data);
 
     return nullptr;
@@ -177,12 +187,17 @@ static char *write_git_object(char *hash_hex, FILE *object_data, unsigned char h
 
     struct object_path path = get_object_path(hash_hex);
 
-    char repo_root_path[PATH_MAX];
+    char *repo_root_path = malloc(sizeof(char) * PATH_MAX);
+    validate(repo_root_path, "Failed to allocate memory.");
+
     char *root = find_repository_root_dir(repo_root_path, PATH_MAX);
     validate(root, "Not a git repository.");
 
-    char full_path[PATH_MAX];
-    (void)snprintf(full_path, PATH_MAX, "%s/.git/objects/%s", root, path.subdir);
+    char *full_path = malloc(sizeof(char) * PATH_MAX);
+    validate(full_path, "Failed to allocate memory.");
+
+    const int size = snprintf(full_path, PATH_MAX, "%s/.git/objects/%s", root, path.subdir);
+    validate(size <= PATH_MAX, "Failed to generate object path for '%s'. Exceeded PATH_MAX", path.subdir);
 
     if (!dir_exists(full_path))
     {
@@ -198,11 +213,15 @@ static char *write_git_object(char *hash_hex, FILE *object_data, unsigned char h
 
     deflate_blob(object_data, deflated_file);
 
+    free(repo_root_path);
+    free(full_path);
     fclose(deflated_file);
 
     return hash_hex;
 
 error:
+    if (repo_root_path) free(repo_root_path);
+    if (root) free(root);
     if (deflated_file) fclose(deflated_file);
 
     return nullptr;
@@ -238,8 +257,8 @@ char *write_tree_object(const buffer *tree_buffer, char *hash_hex)
 
     return hash_hex;
 
-    error:
-        if (tree_data) fclose(tree_data);
+error:
+    if (tree_data) fclose(tree_data);
 
     return nullptr;
 }

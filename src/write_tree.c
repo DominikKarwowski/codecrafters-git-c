@@ -49,7 +49,7 @@ error:
 static bool append_tree_entry(
     FILE *parent_tree_content,
     const char *dir_entry_name,
-    buffer *tree_data_buffer)
+    const buffer *tree_data_buffer)
 {
     FILE *tree_data = nullptr;
     unsigned char hash[SHA_DIGEST_LENGTH];
@@ -126,14 +126,15 @@ error:
     return false;
 }
 
-static bool process_dir_entry(Stack *dirs, proc_dir *proc_dir)
+static bool process_dir(Stack *dirs, proc_dir *proc_dir)
 {
     struct dirent *dir_entry;
     while ((dir_entry = readdir(proc_dir->dir_to_process)) != NULL)
     {
-        char *file_full_path = malloc(PATH_MAX);
+        char *file_full_path = malloc(sizeof(char) * PATH_MAX);
         validate(file_full_path, "Failed to allocate memory");
-        snprintf(file_full_path, PATH_MAX, "%s/%s", proc_dir->path, dir_entry->d_name);
+
+        (void)snprintf(file_full_path, PATH_MAX, "%s/%s", proc_dir->path, dir_entry->d_name);
 
         struct stat fs;
         validate(stat(file_full_path, &fs) == 0, "Failed to stat file '%s'.", file_full_path);
@@ -172,17 +173,13 @@ error:
     return false;
 }
 
-static bool is_dir_entry_fully_processed(const proc_dir *proc_dir)
+static bool is_dir_fully_processed(const proc_dir *proc_dir)
 {
     return proc_dir->buffer->size != 0;
 }
 
-int write_tree(int argc, char *argv[])
+int write_tree()
 {
-    buffer *tree_object_buffer = malloc(sizeof(buffer));
-    FILE *tree_object = open_memstream(&tree_object_buffer->data, &tree_object_buffer->size);
-    validate(tree_object, "Failed to open memory stream.");
-
     char *repo_root_path = malloc(PATH_MAX);
     validate(repo_root_path, "Failed to allocate memory");
 
@@ -194,46 +191,40 @@ int write_tree(int argc, char *argv[])
     bool result = push_dir_for_processing(dirs, root);
     validate(result, "Failed to push subdir '%s' on stack.", root);
 
+    proc_dir *curr = nullptr;
     while (!Stack_is_empty(dirs))
     {
-        proc_dir *curr = Stack_pop(dirs);
+        curr = Stack_pop(dirs);
         validate(curr, "Failed to obtain data from the stack.");
 
-        result = process_dir_entry(dirs, curr);
+        result = process_dir(dirs, curr);
         validate(result, "Failed to process directory entry.");
 
-        if (is_dir_entry_fully_processed(curr))
+        if (is_dir_fully_processed(curr))
         {
             const proc_dir *parent = Stack_peek(dirs);
 
-            FILE *tree_data_stream = parent
-                ? parent->data_stream
-                : tree_object;
-
-            append_tree_entry(tree_data_stream, get_dir_name(curr->path), curr->buffer);
-
-            destroy_proc_dir(curr);
+            if (parent)
+            {
+                append_tree_entry(parent->data_stream, get_dir_name(curr->path), curr->buffer);
+            }
         }
     }
 
-    fclose(tree_object);
-
     char hash_hex[40];
-    char *hash = write_tree_object(tree_object_buffer, hash_hex);
+    char *hash = write_tree_object(curr->buffer, hash_hex);
     validate(hash, "Failed to write tree.");
 
     printf("%s", hash_hex);
 
-    free(tree_object_buffer->data);
-    free(tree_object_buffer);
+    destroy_proc_dir(curr);
     Stack_destroy(dirs, (StackElemCleaner)destroy_proc_dir);
 
     return 0;
 
 error:
+    if (repo_root_path) free(repo_root_path);
     if (dirs) Stack_destroy(dirs, (StackElemCleaner)destroy_proc_dir);
-    if (tree_object) fclose(tree_object);
-    if (tree_object_buffer->data) free(tree_object_buffer->data);
 
     return 1;
 }

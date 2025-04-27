@@ -73,7 +73,7 @@ int main(const int argc, char *argv[])
 
     if (strcmp(command, "write-tree") == 0)
     {
-        return write_tree(argc, argv);
+        return write_tree();
     }
 
     fprintf(stderr, "Unknown command %s\n", command);
