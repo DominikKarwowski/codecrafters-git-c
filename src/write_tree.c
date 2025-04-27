@@ -216,13 +216,14 @@ int write_tree(int argc, char *argv[])
         }
     }
 
+    fclose(tree_object);
+
     char hash_hex[40];
     char *hash = write_tree_object(tree_object_buffer, hash_hex);
     validate(hash, "Failed to write tree.");
 
     printf("%s", hash_hex);
 
-    fclose(tree_object);
     free(tree_object_buffer->data);
     free(tree_object_buffer);
     Stack_destroy(dirs, (StackElemCleaner)destroy_proc_dir);
