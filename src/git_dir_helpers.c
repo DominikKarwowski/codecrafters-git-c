@@ -58,7 +58,7 @@ static bool has_git_subdir(const char *path)
     DIR *dir = opendir(path);
     validate(dir, "Failed to open directory.");
 
-    struct dirent *entry ;
+    struct dirent *entry;
 
     while ((entry = readdir(dir)) != nullptr)
     {
@@ -150,7 +150,10 @@ const char *get_dir_name(const char *path)
     return p;
 }
 
-bool is_excluded_dir(const char *dir_name)
+bool is_excluded_dir(const struct dirent *dir_entry)
 {
-    return strcmp(dir_name, ".") == 0 || strcmp(dir_name, "..") == 0 || strcmp(dir_name, ".git") == 0;
+    return
+        strcmp(dir_entry->d_name, ".") == 0
+        || strcmp(dir_entry->d_name, "..") == 0
+        || strcmp(dir_entry->d_name, ".git") == 0;
 }

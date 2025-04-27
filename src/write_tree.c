@@ -1,6 +1,5 @@
 #include "write_tree.h"
 
-#include <dirent.h>
 #include <limits.h>
 #include <stdlib.h>
 #include <openssl/sha.h>
@@ -71,83 +70,118 @@ error:
     return false;
 }
 
-typedef struct proc_dir
+typedef struct dir_processing_frame
 {
     char *path;
-    DIR *dir_to_process;
+
+    // dir_content
+    struct dirent **dir_entries;
+    int dir_entries_count;
+    int current_dir_index;
+
+    // git_dir_data
     FILE *data_stream;
     buffer *buffer;
-} proc_dir;
+} dir_processing_frame;
 
-static void destroy_proc_dir(proc_dir *proc_dir)
+static void destroy_dir_processing_frame(dir_processing_frame *frame)
 {
-    if (!proc_dir) return;
+    if (!frame) return;
 
-    if (proc_dir->path) free(proc_dir->path);
-    if (proc_dir->dir_to_process) closedir(proc_dir->dir_to_process);
-    if (proc_dir->data_stream) fclose(proc_dir->data_stream);
+    if (frame->path) free(frame->path);
 
-    if (proc_dir->buffer)
+    if (frame->dir_entries)
     {
-        if (proc_dir->buffer->data) free(proc_dir->buffer->data);
-        free(proc_dir->buffer);
+        for (int i = 0; i < frame->dir_entries_count; i++)
+        {
+            if (frame->dir_entries[i]) free(frame->dir_entries[i]);
+        }
+
+        free(frame->dir_entries);
     }
 
-    free(proc_dir);
+    if (frame->data_stream) fclose(frame->data_stream);
+
+    if (frame->buffer)
+    {
+        if (frame->buffer->data) free(frame->buffer->data);
+        free(frame->buffer);
+    }
+
+    free(frame);
+}
+
+static int include_dir(const struct dirent *dir_entry)
+{
+    if (is_excluded_dir(dir_entry))
+    {
+        return 0;
+    }
+
+    return 1;
 }
 
 static bool push_dir_for_processing(Stack *dirs, char *path)
 {
-    DIR *dir = opendir(path);
-    validate(dir, "Failed to open directory '%s'.", path);
+    dir_processing_frame *frame = malloc(sizeof(dir_processing_frame));
+    validate(frame, "Failed to allocate memory.");
 
-    proc_dir *proc_dir = malloc(sizeof(struct proc_dir));
-    validate(proc_dir, "Failed to allocate memory.");
+    frame->path = path;
 
-    proc_dir->buffer = malloc(sizeof(buffer));
-    validate(proc_dir->buffer, "Failed to allocate memory.");
+    frame->buffer = malloc(sizeof(buffer));
+    validate(frame->buffer, "Failed to allocate memory.");
+    frame->buffer->data = nullptr;
+    frame->buffer->size = 0;
 
-    FILE *tree_content = open_memstream(&proc_dir->buffer->data, &proc_dir->buffer->size);
-    validate(tree_content, "Failed to open memory stream.");
+    frame->data_stream = open_memstream(&frame->buffer->data, &frame->buffer->size);
+    validate(frame->data_stream, "Failed to open memory stream.");
 
-    proc_dir->path = path;
-    proc_dir->dir_to_process = dir;
-    proc_dir->data_stream = tree_content;
+    frame->current_dir_index = 0;
+    frame->dir_entries_count = scandir(path, &frame->dir_entries, include_dir, alphasort);
+    validate(frame->dir_entries_count != -1, "Failed to scan directory entries.");
 
-    Stack_push(dirs, proc_dir);
+    Stack_push(dirs, frame);
 
     return true;
 
 error:
-    if (dir) closedir(dir);
-    if (tree_content) fclose(tree_content);
-    destroy_proc_dir(proc_dir);
+    if (frame->data_stream) fclose(frame->data_stream);
+    destroy_dir_processing_frame(frame);
 
     return false;
 }
 
-static bool process_dir(Stack *dirs, proc_dir *proc_dir)
+static bool process_dir(Stack *dirs, dir_processing_frame *frame)
 {
-    struct dirent *dir_entry;
-    while ((dir_entry = readdir(proc_dir->dir_to_process)) != NULL)
+    while (frame->current_dir_index < frame->dir_entries_count)
     {
         char *file_full_path = malloc(sizeof(char) * PATH_MAX);
         validate(file_full_path, "Failed to allocate memory");
 
-        (void)snprintf(file_full_path, PATH_MAX, "%s/%s", proc_dir->path, dir_entry->d_name);
+        const size_t dir_name_len = strlen(frame->dir_entries[frame->current_dir_index]->d_name);
+
+        char dir_name[dir_name_len + 1];
+        strncpy(dir_name, frame->dir_entries[frame->current_dir_index]->d_name, dir_name_len);
+        dir_name[dir_name_len] = '\0';
+
+        (void)snprintf(file_full_path, PATH_MAX, "%s/%s", frame->path, dir_name);
 
         struct stat fs;
         validate(stat(file_full_path, &fs) == 0, "Failed to stat file '%s'.", file_full_path);
 
+        free(frame->dir_entries[frame->current_dir_index]);
+        frame->dir_entries[frame->current_dir_index] = nullptr;
+        frame->current_dir_index++;
+
         if (S_ISREG(fs.st_mode))
         {
-            bool result = append_blob_entry(proc_dir->data_stream, dir_entry->d_name, fs.st_mode, file_full_path);
+            bool result = append_blob_entry(frame->data_stream, dir_name, fs.st_mode, file_full_path);
             validate(result, "Failed to write blob entry for '%s'.", file_full_path);
             free(file_full_path);
         }
-        else if (S_ISDIR(fs.st_mode) && !is_excluded_dir(dir_entry->d_name))
+        else if (S_ISDIR(fs.st_mode))
         {
-            Stack_push(dirs, proc_dir);
+            Stack_push(dirs, frame);
 
             bool result = push_dir_for_processing(dirs, file_full_path);
             validate(result, "Failed to push subdir '%s' on stack.", file_full_path);
@@ -156,26 +190,23 @@ static bool process_dir(Stack *dirs, proc_dir *proc_dir)
         }
     }
 
-    if (!dir_entry)
+    if (frame->current_dir_index > frame->dir_entries_count)
     {
-        closedir(proc_dir->dir_to_process);
-        proc_dir->dir_to_process = nullptr;
-
-        fclose(proc_dir->data_stream);
-        proc_dir->data_stream = nullptr;
+        fclose(frame->data_stream);
+        frame->data_stream = nullptr;
     }
 
     return true;
 
 error:
-    destroy_proc_dir(proc_dir);
+    destroy_dir_processing_frame(frame);
 
     return false;
 }
 
-static bool is_dir_fully_processed(const proc_dir *proc_dir)
+static bool is_dir_fully_processed(const dir_processing_frame *frame)
 {
-    return proc_dir->buffer->size != 0;
+    return frame->buffer->size != 0;
 }
 
 int write_tree()
@@ -191,7 +222,7 @@ int write_tree()
     bool result = push_dir_for_processing(dirs, root);
     validate(result, "Failed to push subdir '%s' on stack.", root);
 
-    proc_dir *curr = nullptr;
+    dir_processing_frame *curr = nullptr;
     while (!Stack_is_empty(dirs))
     {
         curr = Stack_pop(dirs);
@@ -202,11 +233,14 @@ int write_tree()
 
         if (is_dir_fully_processed(curr))
         {
-            const proc_dir *parent = Stack_peek(dirs);
+            const dir_processing_frame *parent = Stack_peek(dirs);
 
             if (parent)
             {
-                append_tree_entry(parent->data_stream, get_dir_name(curr->path), curr->buffer);
+                append_tree_entry(
+                    parent->data_stream,
+                    curr->dir_entries[curr->current_dir_index]->d_name,
+                    curr->buffer);
             }
         }
     }
@@ -217,14 +251,14 @@ int write_tree()
 
     printf("%s", hash_hex);
 
-    destroy_proc_dir(curr);
-    Stack_destroy(dirs, (StackElemCleaner)destroy_proc_dir);
+    destroy_dir_processing_frame(curr);
+    Stack_destroy(dirs, (StackElemCleaner)destroy_dir_processing_frame);
 
     return 0;
 
 error:
     if (repo_root_path) free(repo_root_path);
-    if (dirs) Stack_destroy(dirs, (StackElemCleaner)destroy_proc_dir);
+    if (dirs) Stack_destroy(dirs, (StackElemCleaner)destroy_dir_processing_frame);
 
     return 1;
 }
