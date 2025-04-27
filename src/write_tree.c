@@ -55,7 +55,7 @@ static bool append_tree_entry(
     unsigned char hash[SHA_DIGEST_LENGTH];
     validate(create_tree(tree_data_buffer, &tree_data, hash), "Failed to create a blob object.");
 
-    const char* permissions = "40000";
+    const char *permissions = "40000";
 
     fwrite(permissions, sizeof(char), 5, parent_tree_content);
     fputc(' ', parent_tree_content);
@@ -144,7 +144,7 @@ static bool process_dir_entry(Stack *dirs, proc_dir *proc_dir)
             validate(result, "Failed to write blob entry for '%s'.", file_full_path);
             free(file_full_path);
         }
-        else if (S_ISDIR(fs.st_mode) && !is_current_or_parent_dir(dir_entry->d_name))
+        else if (S_ISDIR(fs.st_mode) && !is_excluded_dir(dir_entry->d_name))
         {
             Stack_push(dirs, proc_dir);
 
@@ -180,7 +180,7 @@ static bool is_dir_entry_fully_processed(const proc_dir *proc_dir)
 int write_tree(int argc, char *argv[])
 {
     buffer *tree_object_buffer = malloc(sizeof(buffer));
-    FILE* tree_object = open_memstream(&tree_object_buffer->data, &tree_object_buffer->size);
+    FILE *tree_object = open_memstream(&tree_object_buffer->data, &tree_object_buffer->size);
     validate(tree_object, "Failed to open memory stream.");
 
     char *repo_root_path = malloc(PATH_MAX);

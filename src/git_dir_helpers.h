@@ -17,6 +17,6 @@ bool dir_exists(const char *path);
 
 const char *get_dir_name(const char *path);
 
-bool is_current_or_parent_dir(const char *dir_name);
+bool is_excluded_dir(const char *dir_name);
 
 #endif //OBJECT_FILE_HELPERS_H
