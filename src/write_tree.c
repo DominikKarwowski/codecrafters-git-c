@@ -52,7 +52,7 @@ static bool append_tree_entry(
 {
     FILE *tree_data = nullptr;
     unsigned char hash[SHA_DIGEST_LENGTH];
-    validate(create_tree(tree_data_buffer, &tree_data, hash), "Failed to create a blob object.");
+    validate(create_tree(tree_data_buffer, &tree_data, hash), "Failed to create a tree object.");
 
     const char *permissions = "40000";
 
@@ -181,19 +181,11 @@ static bool process_dir(Stack *dirs, dir_processing_frame *frame)
         }
         else if (S_ISDIR(fs.st_mode))
         {
-            Stack_push(dirs, frame);
-
             bool result = push_dir_for_processing(dirs, file_full_path);
             validate(result, "Failed to push subdir '%s' on stack.", file_full_path);
 
             break;
         }
-    }
-
-    if (frame->current_dir_index > frame->dir_entries_count)
-    {
-        fclose(frame->data_stream);
-        frame->data_stream = nullptr;
     }
 
     return true;
@@ -206,7 +198,7 @@ error:
 
 static bool is_dir_fully_processed(const dir_processing_frame *frame)
 {
-    return frame->buffer->size != 0;
+    return frame->current_dir_index >= frame->dir_entries_count;
 }
 
 int write_tree()
@@ -225,24 +217,23 @@ int write_tree()
     dir_processing_frame *curr = nullptr;
     while (!Stack_is_empty(dirs))
     {
-        curr = Stack_pop(dirs);
+        curr = Stack_peek(dirs);
         validate(curr, "Failed to obtain data from the stack.");
-
-        result = process_dir(dirs, curr);
-        validate(result, "Failed to process directory entry.");
 
         if (is_dir_fully_processed(curr))
         {
+            (void)Stack_pop(dirs);
+
             const dir_processing_frame *parent = Stack_peek(dirs);
 
             if (parent)
             {
-                append_tree_entry(
-                    parent->data_stream,
-                    curr->dir_entries[curr->current_dir_index]->d_name,
-                    curr->buffer);
+                append_tree_entry(parent->data_stream, get_dir_name(curr->path), curr->buffer);
             }
         }
+
+        result = process_dir(dirs, curr);
+        validate(result, "Failed to process directory entry.");
     }
 
     char hash_hex[40];
