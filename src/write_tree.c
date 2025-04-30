@@ -222,6 +222,9 @@ int write_tree()
 
         if (is_dir_fully_processed(curr))
         {
+            fclose(curr->data_stream);
+            curr->data_stream = nullptr;
+
             (void)Stack_pop(dirs);
 
             const dir_processing_frame *parent = Stack_peek(dirs);
@@ -231,12 +234,15 @@ int write_tree()
                 append_tree_entry(parent->data_stream, get_dir_name(curr->path), curr->buffer);
             }
         }
-
-        result = process_dir(dirs, curr);
-        validate(result, "Failed to process directory entry.");
+        else
+        {
+            result = process_dir(dirs, curr);
+            validate(result, "Failed to process directory entry.");
+        }
     }
 
     char hash_hex[40];
+    printf("%s", curr->buffer->data);
     char *hash = write_tree_object(curr->buffer, hash_hex);
     validate(hash, "Failed to write tree.");
 
