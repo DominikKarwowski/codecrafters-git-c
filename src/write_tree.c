@@ -242,7 +242,6 @@ int write_tree()
     }
 
     char hash_hex[40];
-    printf("%s", curr->buffer->data);
     char *hash = write_tree_object(curr->buffer, hash_hex);
     validate(hash, "Failed to write tree.");
 
