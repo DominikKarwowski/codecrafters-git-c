@@ -5,6 +5,7 @@
 #include <sys/stat.h>
 
 #include "cat_file.h"
+#include "commit_tree.h"
 #include "hash_object.h"
 #include "ls_tree.h"
 #include "write_tree.h"
@@ -74,6 +75,11 @@ int main(const int argc, char *argv[])
     if (strcmp(command, "write-tree") == 0)
     {
         return write_tree();
+    }
+
+    if (strcmp(command, "commit-tree") == 0)
+    {
+        return commit_tree(argc, argv);
     }
 
     fprintf(stderr, "Unknown command %s\n", command);

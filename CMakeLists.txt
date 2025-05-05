@@ -23,7 +23,9 @@ add_executable(git ${SOURCE_FILES}
         src/write_tree.c
         src/write_tree.h
         src/stack.c
-        src/stack.h)
+        src/stack.h
+        src/commit_tree.c
+        src/commit_tree.h)
 
 set(ZLIBPATH "/usr/local")
 target_include_directories(git PRIVATE ${ZLIBPATH}/include)
