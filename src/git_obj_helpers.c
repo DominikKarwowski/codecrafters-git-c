@@ -213,6 +213,7 @@ error:
 
 unsigned char *create_commit(const commit_info *commit_info, FILE **commit_data, unsigned char hash[SHA_DIGEST_LENGTH])
 {
+    printf("Creating commit...");
     FILE *commit_content = nullptr;
     
     size_t content_size = fwrite("tree ", sizeof(char), 5, commit_content);
@@ -249,6 +250,8 @@ unsigned char *create_commit(const commit_info *commit_info, FILE **commit_data,
     content_size += fwrite(commit_info->message, sizeof(char), strlen(commit_info->message), commit_content);
     fputc('\0', commit_content);
 
+    rewind(commit_content);
+    printf("Content written\n");
     char commit_header[24];
 
     const int header_size = sprintf(commit_header, "commit %lu", content_size) + 1;
@@ -365,6 +368,7 @@ error:
 
 char *write_commit_object(const commit_info *commit_info, char *hash_hex)
 {
+    printf("In write_commit_object");
     FILE *commit_data = nullptr;
     unsigned char hash[SHA_DIGEST_LENGTH];
     validate(create_commit(commit_info, &commit_data, hash), "Failed to create a commit object.");

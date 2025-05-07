@@ -21,13 +21,15 @@ static bool try_resolve_commit_tree_opts(const int argc, char *argv[], commit_in
             case 'p':
                 commit_opts->parent_sha = malloc(SHA_HEX_LENGTH);
                 validate(commit_opts->parent_sha, "Failed to allocate memory.");
-                strncpy(commit_opts->parent_sha, optarg, SHA_HEX_LENGTH);
+                strncpy(commit_opts->parent_sha, optarg, SHA_HEX_LENGTH + 1);
+                commit_opts->parent_sha[SHA_HEX_LENGTH] = '\0';
                 break;
             case 'm':
                 const size_t commit_message_len = strlen(optarg);
                 commit_opts->message = malloc(commit_message_len + 1);
                 validate(commit_opts->message, "Failed to allocate memory.");
                 strncpy(commit_opts->message, optarg, commit_message_len);
+                commit_opts->message[commit_message_len] = '\0';
                 break;
             case '?':
                 validate(false, "Invalid switch: '%c'\n", optopt);
