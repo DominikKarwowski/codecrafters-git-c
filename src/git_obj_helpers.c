@@ -252,6 +252,7 @@ unsigned char *create_commit(const commit_info *commit_info, FILE **commit_data,
     fputc('\0', commit_content);
 
     rewind(commit_content);
+    printf("Content written\n");
     char commit_header[24];
 
     const int header_size = sprintf(commit_header, "commit %lu", content_size) + 1;
@@ -263,6 +264,7 @@ unsigned char *create_commit(const commit_info *commit_info, FILE **commit_data,
     size_t write_size = fwrite(commit_header, sizeof(char), header_size, *commit_data);
     validate(write_size == header_size, "Failed to write tree header.");
 
+    printf("Copying mem\n");
     char copy_buffer[BUFSIZ];
     size_t n;
     while ((n = fread(copy_buffer, sizeof(char), sizeof(copy_buffer), commit_content)) > 0)
@@ -273,6 +275,7 @@ unsigned char *create_commit(const commit_info *commit_info, FILE **commit_data,
 
     rewind(*commit_data);
 
+    printf("Calc hash\n");
     unsigned char *result = calculate_hash(*commit_data, commit_size, hash);
     validate(result, "Failed to calculate tree hash.");
 
