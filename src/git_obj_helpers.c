@@ -213,24 +213,21 @@ error:
 
 unsigned char *create_commit(const commit_info *commit_info, FILE **commit_data, unsigned char hash[SHA_DIGEST_LENGTH])
 {
-    FILE *commit_content = nullptr;
+    buffer buffer;
+    FILE *commit_content = open_memstream(&buffer.data, &buffer.size);
+    validate(commit_content, "Failed to allocate memory for commit_content");
 
-    printf("Writing tree...\n");
     size_t content_size = fwrite("tree ", sizeof(char), 5, commit_content);
-    printf("Writing tree sha...\n");
     content_size += fwrite(commit_info->tree_sha, sizeof(char), SHA_HEX_LENGTH, commit_content);
-    printf("Writing nullptr...\n");
     content_size += fwrite("\0", sizeof(char), 1, commit_content);
 
     if (commit_info->parent_sha)
     {
-        printf("Writing parent...\n");
         content_size += fwrite("parent ", sizeof(char), 7, commit_content);
         content_size += fwrite(commit_info->parent_sha, sizeof(char), SHA_HEX_LENGTH, commit_content);
         content_size += fwrite("\0", sizeof(char), 1, commit_content);
     }
 
-    printf("Writing author...\n");
     content_size += fwrite("author ", sizeof(char), 7, commit_content);
     content_size += fwrite(commit_info->author_name, sizeof(char), strlen(commit_info->author_name), commit_content);
     content_size += fwrite(" <", sizeof(char), 2, commit_content);
@@ -281,8 +278,10 @@ unsigned char *create_commit(const commit_info *commit_info, FILE **commit_data,
     validate(result, "Failed to calculate tree hash.");
 
     fclose(commit_content);
+    free(buffer.data);
 
 error:
+    if (buffer.data) free(buffer.data);
     if (commit_content) fclose(commit_content);
 
     return nullptr;
