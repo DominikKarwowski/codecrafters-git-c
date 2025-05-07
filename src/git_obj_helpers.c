@@ -54,6 +54,7 @@ void hash_bytes_to_hex(char *hash_hex, const unsigned char *hash)
     for (size_t i = 0; i < SHA_DIGEST_LENGTH; i++)
     {
         sprintf(&hash_hex[2 * i], "%02x", hash[i]);
+        printf("%02x ", hash[i]);
     }
 }
 
@@ -291,7 +292,6 @@ error:
 
 static char *write_git_object(char *hash_hex, FILE *object_data, unsigned char hash[20])
 {
-    printf("Calc hash...\n");
     hash_bytes_to_hex(hash_hex, hash);
 
     printf("Get path...\n");
