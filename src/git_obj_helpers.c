@@ -213,12 +213,13 @@ error:
 
 unsigned char *create_commit(const commit_info *commit_info, FILE **commit_data, unsigned char hash[SHA_DIGEST_LENGTH])
 {
-    printf("Creating commit...\n");
     FILE *commit_content = nullptr;
 
     printf("Writing tree...\n");
     size_t content_size = fwrite("tree ", sizeof(char), 5, commit_content);
+    printf("Writing tree sha...\n");
     content_size += fwrite(commit_info->tree_sha, sizeof(char), SHA_HEX_LENGTH, commit_content);
+    printf("Writing nullptr...\n");
     content_size += fwrite("\0", sizeof(char), 1, commit_content);
 
     if (commit_info->parent_sha)
