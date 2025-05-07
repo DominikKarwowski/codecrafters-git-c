@@ -151,6 +151,8 @@ unsigned char *create_blob(char *filename, FILE **blob_data, unsigned char hash[
     char blob_header[24];
 
     const int header_size = sprintf(blob_header, "blob %lu", content_size) + 1;
+    blob_header[header_size - 1] = '\0';
+
     const size_t blob_size = header_size + content_size;
 
     *blob_data = fmemopen(NULL, blob_size, "r+");
@@ -187,6 +189,8 @@ unsigned char *create_tree(const buffer *tree_buffer, FILE **tree_data, unsigned
     char tree_header[24];
 
     const int header_size = sprintf(tree_header, "tree %lu", tree_buffer->size) + 1;
+    tree_header[header_size - 1] = '\0';
+
     const size_t tree_size = header_size + tree_buffer->size;
 
     *tree_data = fmemopen(NULL, tree_size, "r+");
@@ -219,34 +223,34 @@ unsigned char *create_commit(const commit_info *commit_info, FILE **commit_data,
 
     size_t content_size = fwrite("tree ", sizeof(char), 5, commit_content);
     content_size += fwrite(commit_info->tree_sha, sizeof(char), SHA_HEX_LENGTH, commit_content);
-    content_size += fwrite("\0", sizeof(char), 1, commit_content);
+    content_size += fwrite("\n", sizeof(char), 1, commit_content);
 
     if (commit_info->parent_sha)
     {
         content_size += fwrite("parent ", sizeof(char), 7, commit_content);
         content_size += fwrite(commit_info->parent_sha, sizeof(char), SHA_HEX_LENGTH, commit_content);
-        content_size += fwrite("\0", sizeof(char), 1, commit_content);
+        content_size += fwrite("\n", sizeof(char), 1, commit_content);
     }
 
     content_size += fwrite("author ", sizeof(char), 7, commit_content);
     content_size += fwrite(commit_info->author_name, sizeof(char), strlen(commit_info->author_name), commit_content);
     content_size += fwrite(" <", sizeof(char), 2, commit_content);
     content_size += fwrite(commit_info->author_email, sizeof(char), strlen(commit_info->author_email), commit_content);
-    content_size += fwrite("< >", sizeof(char), 2, commit_content);
+    content_size += fwrite(" >", sizeof(char), 2, commit_content);
     content_size += fwrite(commit_info->author_date, sizeof(char), strlen(commit_info->author_date), commit_content);
     content_size += fwrite(" ", sizeof(char), 1, commit_content);
     content_size += fwrite(commit_info->author_timezone, sizeof(char), strlen(commit_info->author_timezone), commit_content);
-    content_size += fwrite("\0", sizeof(char), 1, commit_content);
+    content_size += fwrite("\n", sizeof(char), 1, commit_content);
 
     content_size += fwrite("committer ", sizeof(char), 10, commit_content);
     content_size += fwrite(commit_info->author_name, sizeof(char), strlen(commit_info->author_name), commit_content);
     content_size += fwrite(" <", sizeof(char), 2, commit_content);
     content_size += fwrite(commit_info->author_email, sizeof(char), strlen(commit_info->author_email), commit_content);
-    content_size += fwrite("< >", sizeof(char), 2, commit_content);
+    content_size += fwrite(" >", sizeof(char), 2, commit_content);
     content_size += fwrite(commit_info->author_date, sizeof(char), strlen(commit_info->author_date), commit_content);
     content_size += fwrite(" ", sizeof(char), 1, commit_content);
     content_size += fwrite(commit_info->author_timezone, sizeof(char), strlen(commit_info->author_timezone), commit_content);
-    content_size += fwrite("\0\0", sizeof(char), 2, commit_content);
+    content_size += fwrite("\n\n", sizeof(char), 2, commit_content);
 
     content_size += fwrite(commit_info->message, sizeof(char), strlen(commit_info->message), commit_content);
     fputc('\0', commit_content);
@@ -256,6 +260,8 @@ unsigned char *create_commit(const commit_info *commit_info, FILE **commit_data,
     char commit_header[24];
 
     const int header_size = sprintf(commit_header, "commit %lu", content_size) + 1;
+    commit_header[header_size - 1] = '\0';
+
     const size_t commit_size = header_size + content_size;
 
     *commit_data = fmemopen(NULL, commit_size, "r+");
