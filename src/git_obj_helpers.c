@@ -54,7 +54,6 @@ void hash_bytes_to_hex(char *hash_hex, const unsigned char *hash)
     for (size_t i = 0; i < SHA_DIGEST_LENGTH; i++)
     {
         sprintf(&hash_hex[2 * i], "%02x", hash[i]);
-        printf("%02x ", hash[i]);
     }
 }
 
@@ -294,13 +293,11 @@ static char *write_git_object(char *hash_hex, FILE *object_data, unsigned char h
 {
     hash_bytes_to_hex(hash_hex, hash);
 
-    printf("Get path...\n");
     struct object_path path = get_object_path(hash_hex);
 
     char *repo_root_path = malloc(sizeof(char) * PATH_MAX);
     validate(repo_root_path, "Failed to allocate memory.");
 
-    printf("Find root...\n");
     char *root = find_repository_root_dir(repo_root_path, PATH_MAX);
     validate(root, "Not a git repository.");
 
@@ -319,7 +316,6 @@ static char *write_git_object(char *hash_hex, FILE *object_data, unsigned char h
     strcat(full_path, "/");
     strcat(full_path, path.name);
 
-    printf("Deflating...\n");
     FILE *deflated_file = fopen(full_path, "w+");
     validate(deflated_file, "Failed to open file '%s'.", full_path);
 

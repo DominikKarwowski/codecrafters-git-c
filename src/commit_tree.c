@@ -98,7 +98,7 @@ int commit_tree(const int argc, char *argv[])
     validate(opt_result, "Failed to resolve options.");
 
     char hash_hex[SHA_HEX_LENGTH];
-    char *commit_hash = write_commit_object(&commit_info, nullptr);
+    char *commit_hash = write_commit_object(&commit_info, hash_hex);
 
     validate(commit_hash, "Failed to write tree.");
 
