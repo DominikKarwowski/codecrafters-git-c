@@ -19,9 +19,9 @@ static bool try_resolve_commit_tree_opts(const int argc, char *argv[], commit_in
         switch (opt)
         {
             case 'p':
-                commit_opts->parent_sha = malloc(SHA_HEX_LENGTH);
+                commit_opts->parent_sha = malloc(SHA_HEX_LENGTH + 1);
                 validate(commit_opts->parent_sha, "Failed to allocate memory.");
-                strncpy(commit_opts->parent_sha, optarg, SHA_HEX_LENGTH + 1);
+                strncpy(commit_opts->parent_sha, optarg, SHA_HEX_LENGTH);
                 commit_opts->parent_sha[SHA_HEX_LENGTH] = '\0';
                 break;
             case 'm':
