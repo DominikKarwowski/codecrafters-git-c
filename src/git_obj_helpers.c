@@ -213,20 +213,23 @@ error:
 
 unsigned char *create_commit(const commit_info *commit_info, FILE **commit_data, unsigned char hash[SHA_DIGEST_LENGTH])
 {
-    printf("Creating commit...");
+    printf("Creating commit...\n");
     FILE *commit_content = nullptr;
-    
+
+    printf("Writing tree...\n");
     size_t content_size = fwrite("tree ", sizeof(char), 5, commit_content);
     content_size += fwrite(commit_info->tree_sha, sizeof(char), SHA_HEX_LENGTH, commit_content);
     content_size += fwrite("\0", sizeof(char), 1, commit_content);
 
     if (commit_info->parent_sha)
     {
+        printf("Writing parent...\n");
         content_size += fwrite("parent ", sizeof(char), 7, commit_content);
         content_size += fwrite(commit_info->parent_sha, sizeof(char), SHA_HEX_LENGTH, commit_content);
         content_size += fwrite("\0", sizeof(char), 1, commit_content);
     }
 
+    printf("Writing author...\n");
     content_size += fwrite("author ", sizeof(char), 7, commit_content);
     content_size += fwrite(commit_info->author_name, sizeof(char), strlen(commit_info->author_name), commit_content);
     content_size += fwrite(" <", sizeof(char), 2, commit_content);
@@ -368,7 +371,6 @@ error:
 
 char *write_commit_object(const commit_info *commit_info, char *hash_hex)
 {
-    printf("In write_commit_object");
     FILE *commit_data = nullptr;
     unsigned char hash[SHA_DIGEST_LENGTH];
     validate(create_commit(commit_info, &commit_data, hash), "Failed to create a commit object.");
