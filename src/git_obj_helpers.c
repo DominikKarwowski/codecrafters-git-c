@@ -137,7 +137,7 @@ error:
     return nullptr;
 }
 
-static unsigned char *create_blob(char *filename, FILE **blob_data, unsigned char hash[SHA_DIGEST_LENGTH])
+unsigned char *create_blob(char *filename, FILE **blob_data, unsigned char hash[SHA_DIGEST_LENGTH])
 {
     FILE *src_file = fopen(filename, "r");
     validate(src_file, "Failed to open file: %s", filename);
@@ -182,7 +182,7 @@ error:
     return nullptr;
 }
 
-static unsigned char *create_tree(const buffer *tree_buffer, FILE **tree_data, unsigned char hash[SHA_DIGEST_LENGTH])
+unsigned char *create_tree(const buffer *tree_buffer, FILE **tree_data, unsigned char hash[SHA_DIGEST_LENGTH])
 {
     char tree_header[24];
 
@@ -211,10 +211,73 @@ error:
     return nullptr;
 }
 
-static unsigned char *create_commit(const char *message, FILE **commit_data, unsigned char hash[SHA_DIGEST_LENGTH])
+unsigned char *create_commit(const commit_info *commit_info, FILE **commit_data, unsigned char hash[SHA_DIGEST_LENGTH])
 {
+    FILE *commit_content = nullptr;
+    
+    size_t content_size = fwrite("tree ", sizeof(char), 5, commit_content);
+    content_size += fwrite(commit_info->tree_sha, sizeof(char), SHA_HEX_LENGTH, commit_content);
+    content_size += fwrite("\0", sizeof(char), 1, commit_content);
+
+    if (commit_info->parent_sha)
+    {
+        content_size += fwrite("parent ", sizeof(char), 7, commit_content);
+        content_size += fwrite(commit_info->parent_sha, sizeof(char), SHA_HEX_LENGTH, commit_content);
+        content_size += fwrite("\0", sizeof(char), 1, commit_content);
+    }
+
+    content_size += fwrite("author ", sizeof(char), 7, commit_content);
+    content_size += fwrite(commit_info->author_name, sizeof(char), strlen(commit_info->author_name), commit_content);
+    content_size += fwrite(" <", sizeof(char), 2, commit_content);
+    content_size += fwrite(commit_info->author_email, sizeof(char), strlen(commit_info->author_email), commit_content);
+    content_size += fwrite("< >", sizeof(char), 2, commit_content);
+    content_size += fwrite(commit_info->author_date, sizeof(char), strlen(commit_info->author_date), commit_content);
+    content_size += fwrite(" ", sizeof(char), 1, commit_content);
+    content_size += fwrite(commit_info->author_timezone, sizeof(char), strlen(commit_info->author_timezone), commit_content);
+    content_size += fwrite("\0", sizeof(char), 1, commit_content);
+
+    content_size += fwrite("committer ", sizeof(char), 10, commit_content);
+    content_size += fwrite(commit_info->author_name, sizeof(char), strlen(commit_info->author_name), commit_content);
+    content_size += fwrite(" <", sizeof(char), 2, commit_content);
+    content_size += fwrite(commit_info->author_email, sizeof(char), strlen(commit_info->author_email), commit_content);
+    content_size += fwrite("< >", sizeof(char), 2, commit_content);
+    content_size += fwrite(commit_info->author_date, sizeof(char), strlen(commit_info->author_date), commit_content);
+    content_size += fwrite(" ", sizeof(char), 1, commit_content);
+    content_size += fwrite(commit_info->author_timezone, sizeof(char), strlen(commit_info->author_timezone), commit_content);
+    content_size += fwrite("\0\0", sizeof(char), 2, commit_content);
+
+    content_size += fwrite(commit_info->message, sizeof(char), strlen(commit_info->message), commit_content);
+    fputc('\0', commit_content);
+
+    char commit_header[24];
+
+    const int header_size = sprintf(commit_header, "commit %lu", content_size) + 1;
+    const size_t commit_size = header_size + content_size;
+
+    *commit_data = fmemopen(NULL, commit_size, "r+");
+    validate(*commit_data, "Failed to allocate memory for commit_data");
+
+    size_t write_size = fwrite(commit_header, sizeof(char), header_size, *commit_data);
+    validate(write_size == header_size, "Failed to write tree header.");
+
+    char copy_buffer[BUFSIZ];
+    size_t n;
+    while ((n = fread(copy_buffer, sizeof(char), sizeof(copy_buffer), commit_content)) > 0)
+    {
+        write_size = fwrite(copy_buffer, sizeof(char), n, *commit_data);
+        validate(write_size == n, "Failed to write blob content.");
+    }
+
+    rewind(*commit_data);
+
+    unsigned char *result = calculate_hash(*commit_data, commit_size, hash);
+    validate(result, "Failed to calculate tree hash.");
+
+    fclose(commit_content);
 
 error:
+    if (commit_content) fclose(commit_content);
+
     return nullptr;
 }
 
