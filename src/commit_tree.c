@@ -95,6 +95,20 @@ int commit_tree(const int argc, char *argv[])
     bool opt_result = try_resolve_commit_tree_opts(argc, argv, &commit_info);
     validate(opt_result, "Failed to resolve options.");
 
+    //
+    printf("%s\n", commit_info.tree_sha);
+    printf("%s\n", commit_info.parent_sha);
+    printf("%s\n", commit_info.author_name);
+    printf("%s\n", commit_info.author_email);
+    printf("%s\n", commit_info.author_date);
+    printf("%s\n", commit_info.author_timezone);
+    printf("%s\n", commit_info.committer_name);
+    printf("%s\n", commit_info.committer_email);
+    printf("%s\n", commit_info.committer_date);
+    printf("%s\n", commit_info.commiter_timezone);
+    printf("%s\n", commit_info.message);
+    //
+
     char hash_hex[SHA_HEX_LENGTH];
     char *commit_hash = write_commit_object(&commit_info, nullptr);
 
