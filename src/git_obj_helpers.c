@@ -253,7 +253,7 @@ unsigned char *create_commit(const commit_info *commit_info, FILE **commit_data,
     content_size += fwrite("\n\n", sizeof(char), 2, commit_content);
 
     content_size += fwrite(commit_info->message, sizeof(char), strlen(commit_info->message), commit_content);
-    content_size += fwrite("\n\0", sizeof(char), 2, commit_content);
+    content_size += fwrite("\n", sizeof(char), 1, commit_content);
 
     rewind(commit_content);
 
