@@ -10,6 +10,36 @@
 #include "debug_helpers.h"
 #include "git_dir_helpers.h"
 
+void init_commit_tree_info(commit_info *commit_opts)
+{
+    commit_opts->tree_sha = nullptr;
+    commit_opts->parent_sha = nullptr;
+    commit_opts->author_name = nullptr;
+    commit_opts->author_email = nullptr;
+    commit_opts->author_date = nullptr;
+    commit_opts->author_timezone = nullptr;
+    commit_opts->committer_name = nullptr;
+    commit_opts->committer_email = nullptr;
+    commit_opts->committer_date = nullptr;
+    commit_opts->commiter_timezone = nullptr;
+    commit_opts->message = nullptr;
+}
+
+void destroy_commit_tree_info(const commit_info *commit_opts)
+{
+    if (commit_opts->tree_sha) free(commit_opts->tree_sha);
+    if (commit_opts->parent_sha) free(commit_opts->parent_sha);
+    if (commit_opts->message) free(commit_opts->message);
+    if (commit_opts->author_name) free(commit_opts->author_name);
+    if (commit_opts->author_email) free(commit_opts->author_email);
+    if (commit_opts->author_date) free(commit_opts->author_date);
+    if (commit_opts->author_timezone) free(commit_opts->author_timezone);
+    if (commit_opts->committer_name) free(commit_opts->committer_name);
+    if (commit_opts->committer_email) free(commit_opts->committer_email);
+    if (commit_opts->committer_date) free(commit_opts->committer_date);
+    if (commit_opts->commiter_timezone) free(commit_opts->commiter_timezone);
+}
+
 int get_header_size(const char *content)
 {
     int i = 0;
@@ -107,7 +137,7 @@ error:
     return nullptr;
 }
 
-unsigned char *create_blob(char *filename, FILE **blob_data, unsigned char hash[SHA_DIGEST_LENGTH])
+static unsigned char *create_blob(char *filename, FILE **blob_data, unsigned char hash[SHA_DIGEST_LENGTH])
 {
     FILE *src_file = fopen(filename, "r");
     validate(src_file, "Failed to open file: %s", filename);
@@ -152,7 +182,7 @@ error:
     return nullptr;
 }
 
-unsigned char *create_tree(const buffer *tree_buffer, FILE **tree_data, unsigned char hash[SHA_DIGEST_LENGTH])
+static unsigned char *create_tree(const buffer *tree_buffer, FILE **tree_data, unsigned char hash[SHA_DIGEST_LENGTH])
 {
     char tree_header[24];
 
@@ -178,6 +208,13 @@ unsigned char *create_tree(const buffer *tree_buffer, FILE **tree_data, unsigned
 error:
     if (*tree_data) fclose(*tree_data);
 
+    return nullptr;
+}
+
+static unsigned char *create_commit(const char *message, FILE **commit_data, unsigned char hash[SHA_DIGEST_LENGTH])
+{
+
+error:
     return nullptr;
 }
 
@@ -211,7 +248,7 @@ static char *write_git_object(char *hash_hex, FILE *object_data, unsigned char h
     FILE *deflated_file = fopen(full_path, "w+");
     validate(deflated_file, "Failed to open file '%s'.", full_path);
 
-    deflate_blob(object_data, deflated_file);
+    deflate_object(object_data, deflated_file);
 
     free(repo_root_path);
     free(full_path);
@@ -260,5 +297,22 @@ char *write_tree_object(const buffer *tree_buffer, char *hash_hex)
 error:
     if (tree_data) fclose(tree_data);
 
+    return nullptr;
+}
+
+char *write_commit_object(const commit_info *commit_info, char *hash_hex)
+{
+    FILE *commit_data = nullptr;
+    unsigned char hash[SHA_DIGEST_LENGTH];
+    validate(create_commit(commit_info, &commit_data, hash), "Failed to create a commit object.");
+
+    validate(write_git_object(hash_hex, commit_data, hash), "Failed to write tree object.");
+
+    fclose(commit_data);
+
+    return hash_hex;
+
+error:
+    if (commit_data) fclose(commit_data);
     return nullptr;
 }

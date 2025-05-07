@@ -4,7 +4,7 @@
 
 #define CHUNK 65536
 
-void deflate_blob(FILE *source, FILE *dest);
+void deflate_object(FILE *source, FILE *dest);
 
 void inflate_object(FILE *source, FILE *dest);
 

@@ -43,7 +43,7 @@ int hash_object(const int argc, char *argv[])
 
     if (write_opt)
     {
-        char hash_hex[40];
+        char hash_hex[SHA_HEX_LENGTH];
         char *hash = write_blob_object(filename, hash_hex);
         validate(hash, "Failed to write blob.");
 

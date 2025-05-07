@@ -117,7 +117,7 @@ static void print_tree_node_full(const git_tree_node *node)
 {
     if (!node) return;
 
-    char hash_hex[40];
+    char hash_hex[SHA_HEX_LENGTH];
     hash_bytes_to_hex(hash_hex, node->hash);
 
     char *inflated_buffer = nullptr;

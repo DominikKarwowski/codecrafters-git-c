@@ -5,7 +5,7 @@
 
 #include "debug_helpers.h"
 
-void deflate_blob(FILE *source, FILE *dest)
+void deflate_object(FILE *source, FILE *dest)
 {
     z_stream defstream = {
         .zalloc = Z_NULL,
