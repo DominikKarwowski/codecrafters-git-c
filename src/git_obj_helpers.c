@@ -252,7 +252,6 @@ unsigned char *create_commit(const commit_info *commit_info, FILE **commit_data,
     fputc('\0', commit_content);
 
     rewind(commit_content);
-    printf("Content written\n");
     char commit_header[24];
 
     const int header_size = sprintf(commit_header, "commit %lu", content_size) + 1;
@@ -279,6 +278,8 @@ unsigned char *create_commit(const commit_info *commit_info, FILE **commit_data,
 
     fclose(commit_content);
     free(buffer.data);
+
+    return hash;
 
 error:
     if (buffer.data) free(buffer.data);
