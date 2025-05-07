@@ -291,14 +291,16 @@ error:
 
 static char *write_git_object(char *hash_hex, FILE *object_data, unsigned char hash[20])
 {
-    printf("Writing obj...\n");
+    printf("Calc hash...\n");
     hash_bytes_to_hex(hash_hex, hash);
 
+    printf("Get path...\n");
     struct object_path path = get_object_path(hash_hex);
 
     char *repo_root_path = malloc(sizeof(char) * PATH_MAX);
     validate(repo_root_path, "Failed to allocate memory.");
 
+    printf("Find root...\n");
     char *root = find_repository_root_dir(repo_root_path, PATH_MAX);
     validate(root, "Not a git repository.");
 
@@ -343,7 +345,7 @@ char *write_blob_object(char *filename, char *hash_hex)
     unsigned char hash[SHA_DIGEST_LENGTH];
     validate(create_blob(filename, &blob_data, hash), "Failed to create a blob object.");
 
-    validate(write_git_object(hash_hex, blob_data, hash), "Failed to write blob object.");
+    validate(write_git_object(hash_hex, blob_data, hash), "Failed to write a blob object.");
 
     fclose(blob_data);
 
@@ -361,7 +363,7 @@ char *write_tree_object(const buffer *tree_buffer, char *hash_hex)
     unsigned char hash[SHA_DIGEST_LENGTH];
     validate(create_tree(tree_buffer, &tree_data, hash), "Failed to create a tree object.");
 
-    validate(write_git_object(hash_hex, tree_data, hash), "Failed to write tree object.");
+    validate(write_git_object(hash_hex, tree_data, hash), "Failed to write a tree object.");
 
     fclose(tree_data);
 
@@ -379,7 +381,7 @@ char *write_commit_object(const commit_info *commit_info, char *hash_hex)
     unsigned char hash[SHA_DIGEST_LENGTH];
     validate(create_commit(commit_info, &commit_data, hash), "Failed to create a commit object.");
 
-    validate(write_git_object(hash_hex, commit_data, hash), "Failed to write tree object.");
+    validate(write_git_object(hash_hex, commit_data, hash), "Failed to write a commit object.");
 
     fclose(commit_data);
 
